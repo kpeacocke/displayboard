@@ -1,0 +1,19 @@
+services:
+  skaven:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: skaven-soundscape
+    restart: unless-stopped
+    volumes:
+      - ./sounds:/app/sounds:ro
+    env_file:
+      - .env
+    command: poetry run python -m skaven_soundscape.main
+    tty: true
+    stdin_open: true
+
+  # Optional future GPIO/fog interface could go here
+
+volumes:
+  sounds:

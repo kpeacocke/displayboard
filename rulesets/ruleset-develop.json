@@ -1,0 +1,51 @@
+{
+  "name": "Protect develop (GitFlow)",
+  "target": "branch",
+  "enforcement": "active",
+  "conditions": {
+    "ref_name": {
+      "include": [
+        "develop"
+      ]
+    },
+    "pull_request": {
+      "source_branch": {
+        "include": [
+          "feature/*",
+          "fix/*",
+          "hotfix/*"
+        ]
+      }
+    }
+  },
+  "rules": {
+    "required_pull_request": {
+      "enabled": true,
+      "required_approving_review_count": 1,
+      "dismiss_stale_reviews_on_push": true
+    },
+    "required_status_checks": {
+      "enabled": true,
+      "required_checks": [
+        "test",
+        "lint",
+        "typecheck",
+        "check-linked-issues"
+      ]
+    },
+    "required_commit_signatures": {
+      "enabled": true
+    },
+    "required_linear_history": {
+      "enabled": true
+    },
+    "required_conversation_resolution": {
+      "enabled": true
+    }
+  },
+  "bypass_actors": {
+    "users": [],
+    "teams": [],
+    "apps": []
+  }
+}

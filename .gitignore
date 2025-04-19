@@ -1,0 +1,61 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# macOS system files
+.DS_Store
+.AppleDouble
+.LSOverride
+.Spotlight-V100
+.Trashes
+Icon?
+
+# Windows system files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Editor settings
+.vscode/
+.idea/
+*.swp
+
+# Poetry virtual environments (in-project)
+.venv/
+
+# Global poetry venvs (just in case)
+poetry.lock
+
+# Testing & Coverage
+.coverage
+coverage.xml
+htmlcov/
+
+# Pytest
+.cache/
+pytestdebug.log
+htmlcov/
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+*.log
+
+# Logs and temporary files
+*.tmp
+*.log
+*.bak
+
+# Audio files (if you don't want to track test sounds)
+# sounds/**/*.wav
+
+# Env files
+.env
+.secrets.env
+
+# Ignore local deployment scripts or secrets
+deploy.sh
+*.pem
+*.key

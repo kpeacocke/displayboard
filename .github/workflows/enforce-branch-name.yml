@@ -1,0 +1,17 @@
+name: Enforce Branch Naming
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+jobs:
+  check-branch-name:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail if branch name doesn't match GitFlow
+        run: |
+          echo "Checking branch name: ${{ github.head_ref }}"
+          if [[ ! "${{ github.head_ref }}" =~ ^(feature|fix|hotfix|release)/.+$ ]]; then
+            echo "❌ Branch name '${{ github.head_ref }}' doesn't follow GitFlow (feature/*, fix/*, hotfix/*, release/*)"
+            exit 1
+          fi

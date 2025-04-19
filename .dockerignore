@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+.vscode/
+.idea/
+.env
+.cache/
+htmlcov/
+coverage.*
+tests/
+sounds/  # if you want a minimal runtime container

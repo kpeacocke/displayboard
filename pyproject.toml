@@ -1,0 +1,43 @@
+[tool.poetry]
+name = "skaven-soundscape"
+version = "0.1.0"
+description = "A randomized soundscape engine for Warhammer Age of Sigmar Skaven-themed displays"
+authors = ["Kristian Peacocke <krpeacocke@gmail.com>"]
+license = "MIT"
+readme = "README.md"
+packages = [{include = "skaven_soundscape", from = "."}]
+include = ["skaven_soundscape/py.typed"]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+pygame = "^2.5.2"
+python-dotenv = "^1.1.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3.5"
+coverage = "^7.8.0"
+mypy = "^1.15.0"
+ruff = "^0.11.6"
+black = "^25.1.0"
+pre-commit = "^4.2.0"
+
+[tool.coverage.run]
+branch = true
+source = ["skaven_soundscape"]
+
+[tool.coverage.report]
+show_missing = true
+exclude_lines = ["if __name__ == .__main__."]
+
+[tool.mypy]
+strict = true
+ignore_missing_imports = true
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+fix = true
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

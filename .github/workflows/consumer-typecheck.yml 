@@ -1,0 +1,36 @@
+name: Type Consumer Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  external-type-check:
+    name: 🧪 Type Check as Consumer
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.9"
+
+      - name: Install Poetry
+        run: |
+          curl -sSL https://install.python-poetry.org | python3 -
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        run: poetry install
+
+      - name: Write consumer script
+        run: |
+          echo "from skaven_soundscape import main" > consumer_check.py
+          echo "reveal_type(main.SOUND_VOLUME)" >> consumer_check.py
+
+      - name: Run mypy on consumer
+        run: poetry run mypy consumer_check.py
