@@ -11,7 +11,12 @@ load_dotenv()  # Reads .env file if present
 USE_GPIO = os.getenv("USE_GPIO", "false").lower() == "true"
 DEBUG_MODE = os.getenv("DEBUG_MODE", "false").lower() == "true"
 SOUND_VOLUME = float(os.getenv("SOUND_VOLUME", 0.75))
-SOUND_PATTERN = "*.wav"
+
+AUDIO_EXTS = [".wav", ".ogg", ".mp3"]
+
+
+def list_audio_files(path: Path) -> List[Path]:
+    return [f for ext in AUDIO_EXTS for f in path.glob(f"*{ext}")]
 
 
 def pick_random_category() -> str:
@@ -24,9 +29,9 @@ def pick_random_category() -> str:
 
 def load_sound_categories(base_path: Path) -> Dict[str, List[Path]]:
     return {
-        "rats": list((base_path / "rats").glob(SOUND_PATTERN)),
-        "chains": list((base_path / "chains").glob(SOUND_PATTERN)),
-        "screams": list((base_path / "screams").glob(SOUND_PATTERN)),
+        "rats": list_audio_files(base_path / "rats"),
+        "chains": list_audio_files(base_path / "chains"),
+        "screams": list_audio_files(base_path / "screams"),
     }
 
 
@@ -37,15 +42,13 @@ def main(iterations: Optional[int] = None) -> None:
     sound_root = Path(__file__).resolve().parent.parent / "sounds"
     categories = load_sound_categories(sound_root)
 
-    ambient_file = sound_root / "ambient" / "sewer_loop_1.wav"
+    ambient_file = sound_root / "ambient" / "monsters-cave-159887.mp3"
     pygame.mixer.music.load(str(ambient_file))
     pygame.mixer.music.set_volume(0.3)
     pygame.mixer.music.play(-1)  # Loop forever
 
     try:
-        loop = (
-            range(iterations) if iterations is not None else iter(int, 1)
-        )  # Infinite if None
+        loop = range(iterations) if iterations is not None else iter(int, 1)
         for _ in loop:
             time.sleep(random.uniform(4, 15))
 

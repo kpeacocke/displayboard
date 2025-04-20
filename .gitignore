@@ -49,7 +49,9 @@ dist/
 *.bak
 
 # Audio files (if you don't want to track test sounds)
-# sounds/**/*.wav
+sounds/**/*.wav
+sounds/**/*.ogg
+sounds/**/*.mp3
 
 # Env files
 .env

@@ -29,10 +29,13 @@ def test_sound_directories_exist() -> None:
 
 
 def test_audio_file_extensions() -> None:
+    allowed = {".wav", ".ogg", ".mp3"}
     base_path = Path(__file__).resolve().parent.parent / "sounds"
     for subfolder in ["rats", "chains", "screams"]:
         for file in (base_path / subfolder).glob("*"):
-            assert file.suffix == ".wav", f"Unsupported format in {file.name}"
+            if file.name.startswith(".") or not file.is_file():
+                continue
+            assert file.suffix in allowed, f"Unsupported format in {file.name}"
 
 
 def test_pick_random_category_distribution() -> None:
