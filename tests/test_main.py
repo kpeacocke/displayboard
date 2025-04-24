@@ -148,7 +148,10 @@ def test_load_sound_categories(tmp_path: Path) -> None:
         (main.ambient_loop, (cast(List[Path], []), 100, 0.5)),
         (main.chains_loop, (cast(List[Path], []),)),
         (main.skaven_loop, (cast(List[Path], []),)),
-        (main.rats_loop, (cast(List[Path], []), cast(List[types.SimpleNamespace], []))),
+        (
+            main.rats_loop,
+            (cast(List[Path], []), cast(List[types.SimpleNamespace], [])),
+        ),
     ],
 )
 def test_loops_return_immediately_on_empty(
