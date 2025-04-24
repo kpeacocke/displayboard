@@ -33,6 +33,7 @@ exclude_lines = ["if __name__ == .__main__."]
 strict = true
 ignore_missing_imports = true
 exclude = "tests/.*"
+allow_untyped_decorators = true
 
 [tool.ruff]
 line-length = 100
