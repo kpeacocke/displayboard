@@ -488,62 +488,76 @@ def test_rats_loop_body(monkeypatch: pytest.MonkeyPatch) -> None:
         main.rats_loop(files, chans)
 
 
-def test_main_stop_after_and_scream(
-    monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
+def test_main_with_stop_after(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    # simulate KeyboardInterrupt on sleep
-    def pygame_init_override() -> None:
-        # no-op pygame.init override
-        pass
+    """Test that the main function handles the stop_after argument."""
 
-    monkeypatch.setattr(main.pygame, "init", pygame_init_override)
+    def fake_load_sound_categories(base_path: Path) -> Dict[str, List[Path]]:
+        return {
+            "ambient": [],
+            "rats": [],
+            "chains": [],
+            "screams": [],
+            "skaven": [],
+        }
 
-    def mixer_init_override() -> None:
-        # no-op mixer.init override
-        pass
-
-    monkeypatch.setattr(main.pygame.mixer, "init", mixer_init_override)
-
-    def set_num_channels_override(n: int) -> None:
-        # no-op set_num_channels override
-        pass
-
-    monkeypatch.setattr(
-        main.pygame.mixer,
-        "set_num_channels",
-        set_num_channels_override,
-    )
-
-    def fake_thread(*args: Any, **kwargs: Any) -> types.SimpleNamespace:
-        def start() -> None:
-            # no-op thread start
-            pass
-
-        return types.SimpleNamespace(start=start)
-
-    monkeypatch.setattr(
-        main.threading,
-        "Thread",
-        fake_thread,
-    )
+    monkeypatch.setattr(main, "load_sound_categories", fake_load_sound_categories)
 
     def fake_sleep(s: float) -> None:
         raise KeyboardInterrupt()
 
     monkeypatch.setattr(main.time, "sleep", fake_sleep)
 
-    def channel_override(i: int = 0) -> types.SimpleNamespace:
-        def fadeout(ms: int = 0) -> None:
-            # no-op channel fadeout
+    try:
+        main.main(stop_after=5)
+    except KeyboardInterrupt:
+        pass
+
+    captured = capsys.readouterr()
+    assert "Stopping after 5 cycles" in captured.out
+
+
+def test_main_scream_logic_with_files(monkeypatch: pytest.MonkeyPatch) -> None:
+    scream_files = [Path("scream1.wav"), Path("scream2.wav")]
+    calls = {"played": 0}
+
+    def fake_sleep(secs: float) -> None:
+        if calls["played"] >= 1:
+            raise KeyboardInterrupt()
+
+    monkeypatch.setattr(main.time, "sleep", fake_sleep)
+
+    def fake_sound(path: Path) -> types.SimpleNamespace:
+        def set_volume(v: float) -> None:
+            # No-op for setting volume in tests
             pass
 
-        return types.SimpleNamespace(fadeout=fadeout)
+        def play(**kwargs: Any) -> None:
+            # Simulate playing sound
+            calls["played"] += 1
 
-    monkeypatch.setattr(
-        main.pygame.mixer,
-        "Channel",
-        channel_override,
-    )
+        return types.SimpleNamespace(
+            set_volume=set_volume,
+            play=play,
+        )
 
-    main.main(stop_after=3)
+    monkeypatch.setattr(main.pygame.mixer, "Sound", fake_sound)
+
+    def fake_load_sound_categories(base_path: Path) -> Dict[str, List[Path]]:
+        return {
+            "ambient": [],
+            "rats": [],
+            "chains": [],
+            "screams": scream_files,
+            "skaven": [],
+        }
+
+    monkeypatch.setattr(main, "load_sound_categories", fake_load_sound_categories)
+
+    try:
+        main.main()
+    except KeyboardInterrupt:
+        pass
+
+    assert calls["played"] == 1
