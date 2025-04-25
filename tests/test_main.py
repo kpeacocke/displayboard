@@ -489,7 +489,8 @@ def test_rats_loop_body(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_main_with_stop_after(
-    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     """Test that the main function handles the stop_after argument."""
 
@@ -502,7 +503,11 @@ def test_main_with_stop_after(
             "skaven": [],
         }
 
-    monkeypatch.setattr(main, "load_sound_categories", fake_load_sound_categories)
+    monkeypatch.setattr(
+        main,
+        "load_sound_categories",
+        fake_load_sound_categories,
+    )
 
     def fake_sleep(s: float) -> None:
         raise KeyboardInterrupt()
@@ -553,7 +558,11 @@ def test_main_scream_logic_with_files(monkeypatch: pytest.MonkeyPatch) -> None:
             "skaven": [],
         }
 
-    monkeypatch.setattr(main, "load_sound_categories", fake_load_sound_categories)
+    monkeypatch.setattr(
+        main,
+        "load_sound_categories",
+        fake_load_sound_categories,
+    )
 
     try:
         main.main()
@@ -561,3 +570,122 @@ def test_main_scream_logic_with_files(monkeypatch: pytest.MonkeyPatch) -> None:
         pass
 
     assert calls["played"] == 1
+
+
+# --- Merged tests from test_main_extra.py
+
+
+def test_main_scream_logic_without_files(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Test that main loop skips scream logic
+    when no scream files are present."""
+
+    from skaven_soundscape import main
+
+    class BreakLoop(Exception):
+        pass
+
+    def fake_load_sound_categories(base_path: Path) -> Dict[str, List[Path]]:
+        return {
+            "ambient": [],
+            "rats": [],
+            "chains": [],
+            "screams": [],
+            "skaven": [],
+        }
+
+    monkeypatch.setattr(
+        main,
+        "load_sound_categories",
+        fake_load_sound_categories,
+    )
+
+    calls = {"count": 0}
+
+    def fake_sleep(seconds: float) -> None:
+        if calls["count"] < 2:
+            calls["count"] += 1
+        else:
+            raise BreakLoop()
+
+    monkeypatch.setattr(
+        main.time,
+        "sleep",
+        fake_sleep,
+    )
+
+    with pytest.raises(BreakLoop):
+        main.main()
+    assert calls["count"] == 2
+
+
+def test_ambient_loop_idx_increment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Test that ambient_loop cycles through files by incrementing idx."""
+
+    from skaven_soundscape import main
+
+    class BreakLoop(Exception):
+        pass
+
+    files = [Path("a.wav"), Path("b.wav")]
+    played: List[str] = []
+
+    def chan_play(snd: types.SimpleNamespace, **kwargs: Any) -> None:
+        # no-op for tests
+        pass
+
+    def chan_fadeout(ms: int) -> None:
+        # no-op for tests
+        pass
+
+    fake_chan = types.SimpleNamespace(play=chan_play, fadeout=chan_fadeout)
+
+    def channel_override(i: int = 0) -> types.SimpleNamespace:
+        return fake_chan
+
+    monkeypatch.setattr(
+        main.pygame.mixer,
+        "Channel",
+        channel_override,
+    )
+
+    def fake_sound(path: Any) -> types.SimpleNamespace:
+        # path may be a str in main implementation, normalize to Path
+        p = Path(path)
+        played.append(p.name)
+
+        def set_volume(v: float) -> None:
+            # no-op for tests
+            pass
+
+        def get_length() -> float:
+            return 0.01
+
+        def play(**kwargs: Any) -> None:
+            # no-op for tests
+            pass
+
+        return types.SimpleNamespace(
+            set_volume=set_volume,
+            get_length=get_length,
+            play=play,
+        )
+
+    monkeypatch.setattr(main.pygame.mixer, "Sound", fake_sound)
+
+    calls = {"count": 0}
+
+    def fake_sleep(seconds: float) -> None:
+        if calls["count"] < 3:
+            calls["count"] += 1
+        else:
+            raise BreakLoop()
+
+    monkeypatch.setattr(main.time, "sleep", fake_sleep)
+
+    with pytest.raises(BreakLoop):
+        main.ambient_loop(files, fade_ms=10, volume=1.0)
+    assert "a.wav" in played and "b.wav" in played
