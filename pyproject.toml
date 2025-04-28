@@ -5,13 +5,15 @@ description = "A randomized soundscape engine for Warhammer Age of Sigmar Skaven
 authors = ["Kristian Peacocke <krpeacocke@gmail.com>"]
 license = "MIT"
 readme = "README.md"
-packages = [{include = "skaven_soundscape", from = "."}]
+packages = [{ include = "skaven_soundscape", from = "." }]
 include = ["skaven_soundscape/py.typed"]
 
 [tool.poetry.dependencies]
 python = "^3.9"
 pygame = "^2.5.2"
 python-dotenv = "^1.1.0"
+rpi-ws281x = "^4.3.0"  # Raspberry Pi LED low-level driver
+adafruit-circuitpython-neopixel = "^6.3.11"  # Easy LED control wrapper
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.5"
@@ -27,7 +29,9 @@ source = ["skaven_soundscape"]
 
 [tool.coverage.report]
 show_missing = true
-exclude_lines = ["if __name__ == .__main__."]
+exclude_lines = [
+  "if __name__ == .__main__.",
+]
 
 [tool.mypy]
 strict = true
