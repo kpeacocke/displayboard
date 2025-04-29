@@ -1,0 +1,137 @@
+import itertools
+import pytest
+from pytest import MonkeyPatch, CaptureFixture
+from unittest.mock import patch, MagicMock
+
+import skaven_soundscape.bell as bell
+from skaven_soundscape.bell import (
+    start_sound,
+    stop_sound,
+    move_bell,
+    random_trigger_loop,
+)
+
+
+@patch("skaven_soundscape.bell.pygame.mixer.music.play")
+@patch("skaven_soundscape.bell.pygame.mixer.music.set_volume")
+@patch("skaven_soundscape.bell.pygame.mixer.music.load")
+@patch("skaven_soundscape.bell.random.randint")
+@patch("skaven_soundscape.bell.random.uniform")
+def test_start_sound(
+    mock_uniform: MagicMock,
+    mock_randint: MagicMock,
+    mock_load: MagicMock,
+    mock_set_volume: MagicMock,
+    mock_play: MagicMock,
+) -> None:
+    # Arrange mocks
+    mock_randint.return_value = 45
+    mock_uniform.return_value = 0.75
+
+    start_sound()
+
+    mock_randint.assert_called_once_with(0, 90)
+    mock_uniform.assert_called_once_with(0.3, 1.0)
+    mock_load.assert_called_once_with("../sounds/bell/screamingBell.mp3")
+    mock_set_volume.assert_called_once_with(0.75)
+    mock_play.assert_called_once_with(start=45)
+
+
+@patch("skaven_soundscape.bell.pygame.mixer.music.stop")
+def test_stop_sound(mock_stop: MagicMock) -> None:
+    stop_sound()
+    mock_stop.assert_called_once()
+
+
+@patch("skaven_soundscape.bell.servo")
+@patch("skaven_soundscape.bell.random.uniform")
+@patch("skaven_soundscape.bell.random.randint")
+@patch("skaven_soundscape.bell.sleep")
+def test_move_bell(
+    mock_sleep: MagicMock,
+    mock_randint: MagicMock,
+    mock_uniform: MagicMock,
+    mock_servo: MagicMock,
+) -> None:
+    mock_randint.return_value = 3
+    mock_uniform.side_effect = [-0.5, 0.5, -1.0, 0.3, 0.7, -0.2]
+
+    move_bell()
+
+    assert mock_randint.called
+    assert mock_servo.mid.called
+    assert mock_sleep.call_count == 3
+
+
+@patch("skaven_soundscape.bell.start_sound")
+@patch("skaven_soundscape.bell.move_bell")
+@patch("skaven_soundscape.bell.stop_sound")
+@patch("skaven_soundscape.bell.random.uniform")
+@patch("skaven_soundscape.bell.random.random")
+@patch("skaven_soundscape.bell.sleep")
+def test_random_trigger_loop(
+    mock_sleep: MagicMock,
+    mock_random: MagicMock,
+    mock_uniform: MagicMock,
+    mock_stop_sound: MagicMock,
+    mock_move_bell: MagicMock,
+    mock_start_sound: MagicMock,
+) -> None:
+    mock_uniform.side_effect = [15, 25, 35]
+    mock_random.side_effect = itertools.cycle([0.7, 0.9])
+    mock_sleep.side_effect = [None, KeyboardInterrupt()]
+
+    with patch("builtins.print"):
+        with pytest.raises(KeyboardInterrupt):
+            random_trigger_loop()
+
+    mock_start_sound.assert_called_once()
+    mock_move_bell.assert_called_once()
+    mock_stop_sound.assert_called_once()
+
+
+@patch("skaven_soundscape.bell.start_sound")
+@patch("skaven_soundscape.bell.move_bell")
+@patch("skaven_soundscape.bell.stop_sound")
+@patch("skaven_soundscape.bell.random.uniform")
+@patch("skaven_soundscape.bell.random.random")
+@patch("skaven_soundscape.bell.sleep")
+def test_random_not_trigger_loop(
+    mock_sleep: MagicMock,
+    mock_random: MagicMock,
+    mock_uniform: MagicMock,
+    mock_stop_sound: MagicMock,
+    mock_move_bell: MagicMock,
+    mock_start_sound: MagicMock,
+) -> None:
+    mock_uniform.return_value = 12
+    mock_random.return_value = 0.9
+    mock_sleep.side_effect = [None, KeyboardInterrupt()]
+
+    with patch("builtins.print") as mock_print:
+        with pytest.raises(KeyboardInterrupt):
+            random_trigger_loop()
+
+    mock_start_sound.assert_not_called()
+    mock_move_bell.assert_not_called()
+    mock_stop_sound.assert_not_called()
+    mock_print.assert_any_call("...The bell remains silent...")
+
+
+def test_main_keyboard_interrupt(
+    monkeypatch: MonkeyPatch,
+    capfd: CaptureFixture[str],
+) -> None:
+    def raise_interrupt() -> None:
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(bell, "random_trigger_loop", raise_interrupt)
+
+    servo_mock = MagicMock()
+    monkeypatch.setattr(bell, "servo", servo_mock)
+
+    bell.main()
+
+    servo_mock.mid.assert_called_once()
+    captured = capfd.readouterr()
+    assert "🛑 Exiting... setting bell to neutral." in captured.out
