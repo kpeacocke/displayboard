@@ -31,15 +31,24 @@ def test_start_sound(
 
     mock_randint.assert_called_once_with(0, 90)
     mock_uniform.assert_called_once_with(0.3, 1.0)
-    mock_load.assert_called_once_with("../sounds/bell/screamingBell.mp3")
+    # Should load the configured sound file
+    mock_load.assert_called_once_with(bell.sound_file)
     mock_set_volume.assert_called_once_with(0.75)
     mock_play.assert_called_once_with(start=45)
 
 
 @patch("skaven_soundscape.bell.pygame.mixer.music.stop")
-def test_stop_sound(mock_stop: MagicMock) -> None:
+def test_stop_sound(
+    mock_stop: MagicMock,
+    capsys: CaptureFixture[str],
+) -> None:
+    # Act: stop the sound
     stop_sound()
+
+    # Assert music stopped and message printed
     mock_stop.assert_called_once()
+    captured = capsys.readouterr()
+    assert "🔇 Sound stopped." in captured.out
 
 
 @patch("skaven_soundscape.bell.servo")
