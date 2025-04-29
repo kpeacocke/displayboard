@@ -24,7 +24,6 @@ def test_start_sound(
     mock_set_volume: MagicMock,
     mock_play: MagicMock,
 ) -> None:
-    # Arrange mocks
     mock_randint.return_value = 45
     mock_uniform.return_value = 0.75
 
