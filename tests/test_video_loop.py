@@ -9,27 +9,31 @@ from skaven.video_loop import (
 
 
 def test_check_omxplayer_installed_installed() -> None:
-    with patch("shutil.which", return_value="/usr/bin/omxplayer"):
-        try:
-            check_omxplayer_installed()
-        except SystemExit as e:
-            pytest.fail(
-                "check_omxplayer_installed() exited unexpectedly "
-                "when omxplayer is installed."
-            )
-            raise e
+    # force Linux so exit logic runs
+    with patch("platform.system", return_value="Linux"):
+        with patch("shutil.which", return_value="/usr/bin/omxplayer"):
+            try:
+                check_omxplayer_installed()
+            except SystemExit as e:
+                pytest.fail(
+                    "check_omxplayer_installed() exited unexpectedly "
+                    "when omxplayer is installed."
+                )
+                raise e
 
 
 def test_check_omxplayer_installed_not_installed() -> None:
-    with patch("shutil.which", return_value=None):
-        with patch("sys.exit") as mock_exit:
-            with patch("builtins.print") as mock_print:
-                check_omxplayer_installed()
-                mock_exit.assert_called_once_with(1)
-                mock_print.assert_any_call("❌ Error: omxplayer is not installed.")
-                mock_print.assert_any_call(
-                    "👉 Install it with: sudo apt install omxplayer"
-                )
+    # force Linux so exit logic runs
+    with patch("platform.system", return_value="Linux"):
+        with patch("shutil.which", return_value=None):
+            with patch("sys.exit") as mock_exit:
+                with patch("builtins.print") as mock_print:
+                    check_omxplayer_installed()
+                    mock_exit.assert_called_once_with(1)
+                    mock_print.assert_any_call("❌ Error: omxplayer not installed.")
+                    mock_print.assert_any_call(
+                        "👉 Install it with: sudo apt install omxplayer"
+                    )
 
 
 def test_play_video_loop_keyboard_interrupt() -> None:
@@ -60,3 +64,14 @@ def test_main_runs_both_checks() -> None:
             main()
     mock_check.assert_called_once()
     mock_loop.assert_called_once()
+
+
+def test_check_omxplayer_installed_skips_on_non_linux() -> None:
+    # On non-Linux platforms, no exit or print should occur
+    with patch("platform.system", return_value="Darwin"):
+        with patch("shutil.which", return_value=None):
+            with patch("sys.exit") as mock_exit:
+                with patch("builtins.print") as mock_print:
+                    check_omxplayer_installed()
+                    mock_exit.assert_not_called()
+                    mock_print.assert_not_called()

@@ -4,13 +4,17 @@ import subprocess
 import shutil
 import sys
 import time
+import platform
 
-VIDEO_PATH = "/home/pi/Videos/skaven_loop.mp4"  # ✅ Customize this!
+VIDEO_PATH = "assets/video/skaven_loop.mp4"
 
 
 def check_omxplayer_installed() -> None:
+    # Skip omxplayer requirement on non-Linux platforms (e.g. macOS)
+    if platform.system() != "Linux":
+        return
     if shutil.which("omxplayer") is None:
-        print("❌ Error: omxplayer is not installed.")
+        print("❌ Error: omxplayer not installed.")
         print("👉 Install it with: sudo apt install omxplayer")
         sys.exit(1)
 

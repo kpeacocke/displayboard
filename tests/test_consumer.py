@@ -1,7 +1,7 @@
 # test_consumer.py
 
-from skaven import main
+from skaven import sounds
 
 
 def test_volume() -> None:
-    assert isinstance(main.SOUND_VOLUME, float)
+    assert isinstance(sounds.SOUND_VOLUME, float)

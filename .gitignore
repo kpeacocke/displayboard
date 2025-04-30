@@ -48,10 +48,8 @@ dist/
 *.log
 *.bak
 
-# Audio files (if you don't want to track test sounds)
-sounds/**/*.wav
-sounds/**/*.ogg
-sounds/**/*.mp3
+# Audio & video files
+src/assets/
 
 # Env files
 .env

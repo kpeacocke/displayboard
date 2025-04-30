@@ -8,7 +8,11 @@ readme = "README.md"
 packages = [
   { include = "skaven", from = "src" }
 ]
-include = ["src/skaven/py.typed"]
+include = [
+  "src/skaven/py.typed",
+  "src/assets/sounds/**",
+  "src/assets/video/**",
+]
 
 [tool.poetry.dependencies]
 python = "^3.9"

@@ -19,7 +19,7 @@ except pygame.error:
     pass
 
 # Sound file
-sound_file = "../sounds/bell/screamingBell.mp3"
+sound_file = "assets/sounds/bell/screamingBell.mp3"
 
 
 def start_sound() -> None:
