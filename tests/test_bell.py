@@ -1,4 +1,6 @@
 import itertools
+import importlib
+import pygame
 import pytest
 from pytest import MonkeyPatch, CaptureFixture
 from unittest.mock import patch, MagicMock
@@ -143,3 +145,30 @@ def test_main_keyboard_interrupt(
     servo_mock.mid.assert_called_once()
     captured = capfd.readouterr()
     assert "🛑 Exiting... setting bell to neutral." in captured.out
+
+
+def test_mixer_init_success(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Simulate successful mixer init and reload module
+    called: list[bool] = []
+
+    def fake_init() -> None:
+        called.append(True)
+
+    monkeypatch.setattr(pygame.mixer, "init", fake_init)
+    # Reload bell module to trigger init
+    import skaven_soundscape.bell as bell_mod
+
+    importlib.reload(bell_mod)
+    assert called, "pygame.mixer.init was not called on reload"
+
+
+def test_mixer_init_failure(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Simulate mixer.init raising pygame.error to hit exception handler
+    def raise_error() -> None:
+        raise pygame.error("init failed")
+
+    monkeypatch.setattr(pygame.mixer, "init", raise_error)
+    # Reload module to execute init block
+    bell_mod = importlib.reload(bell)
+    # Ensure module loaded and sound_file still available
+    assert hasattr(bell_mod, "sound_file")

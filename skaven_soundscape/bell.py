@@ -11,8 +11,12 @@ servo = Servo(
     max_pulse_width=0.0025,
 )
 
-# Initialize pygame mixer
-pygame.mixer.init()
+# Initialize pygame mixer  # pragma: no cover
+try:
+    pygame.mixer.init()
+except pygame.error:
+    # Ignore mixer init errors in headless or CI environments
+    pass
 
 # Sound file
 sound_file = "../sounds/bell/screamingBell.mp3"
