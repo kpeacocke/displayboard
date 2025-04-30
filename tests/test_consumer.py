@@ -1,5 +1,3 @@
-# test_consumer.py
-
 from skaven import sounds
 
 

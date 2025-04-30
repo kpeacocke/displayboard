@@ -1,9 +1,9 @@
-# tests/test_main.py
 import sys
 import time
 import threading
 import pytest
 from typing import Callable, Optional, Dict
+from skaven import sounds, lighting, video_loop
 
 import skaven.main as dispatcher
 
@@ -40,15 +40,15 @@ def patch_threads_and_calls(monkeypatch: pytest.MonkeyPatch) -> Dict[str, int]:
 
     calls: Dict[str, int] = {"sounds": 0, "lighting": 0, "video": 0}
     monkeypatch.setattr(
-        dispatcher.sounds, "main", lambda: calls.update(sounds=calls["sounds"] + 1)
+        sounds, "main", lambda: calls.update(sounds=calls["sounds"] + 1)
     )
     monkeypatch.setattr(
-        dispatcher.lighting,
+        lighting,
         "skaven_flicker_breathe",
         lambda: calls.update(lighting=calls["lighting"] + 1),
     )
     monkeypatch.setattr(
-        dispatcher.video_loop, "main", lambda: calls.update(video=calls["video"] + 1)
+        video_loop, "main", lambda: calls.update(video=calls["video"] + 1)
     )
 
     def fake_sleep(sec: float) -> None:

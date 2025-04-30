@@ -41,7 +41,7 @@ jobs:
       - name: Install dependencies
         run: poetry install
       - name: Run Mypy
-        run: poetry run mypy skaven_soundscape
+        run: poetry run mypy src
 
   test:
     name: 🧪 Test

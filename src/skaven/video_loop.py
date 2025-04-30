@@ -1,5 +1,3 @@
-# skaven_soundscape/video_loop.py
-
 import subprocess
 import shutil
 import sys
