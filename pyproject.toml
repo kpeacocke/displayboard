@@ -5,8 +5,10 @@ description = "A randomized soundscape engine for Warhammer Age of Sigmar Skaven
 authors = ["Kristian Peacocke <krpeacocke@gmail.com>"]
 license = "MIT"
 readme = "README.md"
-packages = [{ include = "skaven_soundscape", from = "." }]
-include = ["skaven_soundscape/py.typed"]
+packages = [
+  { include = "skaven", from = "src" }
+]
+include = ["src/skaven/py.typed"]
 
 [tool.poetry.dependencies]
 python = "^3.9"
@@ -24,11 +26,11 @@ black = "^25.1.0"
 pre-commit = "^4.2.0"
 
 [tool.poetry.scripts]
-play-video = "skaven_soundscape.video_loop:main"  # ✅ NEW: CLI entry point
+play-video = "skaven.video_loop:main"  # ✅ CLI entry point updated for new package
 
 [tool.coverage.run]
 branch = true
-source = ["skaven_soundscape"]
+source = ["skaven"]
 
 [tool.coverage.report]
 show_missing = true

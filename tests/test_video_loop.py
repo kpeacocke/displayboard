@@ -1,7 +1,7 @@
 import pytest
 import subprocess
 from unittest.mock import patch
-from skaven_soundscape.video_loop import (
+from skaven.video_loop import (
     check_omxplayer_installed,
     play_video_loop,
     main,
@@ -50,9 +50,9 @@ def test_play_video_loop_called_process_error() -> None:
 
 
 def test_main_runs_both_checks() -> None:
-    with patch(
-        "skaven_soundscape.video_loop.check_omxplayer_installed"
-    ) as mock_check, patch("skaven_soundscape.video_loop.play_video_loop") as mock_loop:
+    with patch("skaven.video_loop.check_omxplayer_installed") as mock_check, patch(
+        "skaven.video_loop.play_video_loop"
+    ) as mock_loop:
         main()
         mock_check.assert_called_once()
         mock_loop.assert_called_once()

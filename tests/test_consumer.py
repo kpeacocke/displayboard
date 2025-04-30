@@ -1,6 +1,6 @@
 # test_consumer.py
 
-from skaven_soundscape import main
+from skaven import main
 
 
 def test_volume() -> None:

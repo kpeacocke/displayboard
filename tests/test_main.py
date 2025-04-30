@@ -9,7 +9,7 @@ import types
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-import skaven_soundscape.main as main  # noqa: E402
+import skaven.main as main  # noqa: E402
 
 
 # --- Fixtures for patching pygame, time, and random ---
@@ -581,7 +581,7 @@ def test_main_scream_logic_without_files(
     """Test that main loop skips scream logic
     when no scream files are present."""
 
-    from skaven_soundscape import main
+    from skaven import main
 
     class BreakLoop(Exception):
         pass
@@ -625,7 +625,7 @@ def test_ambient_loop_idx_increment(
 ) -> None:
     """Test that ambient_loop cycles through files by incrementing idx."""
 
-    from skaven_soundscape import main
+    from skaven import main
 
     class BreakLoop(Exception):
         pass

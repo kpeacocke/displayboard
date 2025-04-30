@@ -1,5 +1,5 @@
 import math
-from skaven_soundscape.gpiozero import Servo
+from skaven.gpiozero import Servo
 
 
 def test_servo_initialization() -> None:

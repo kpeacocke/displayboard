@@ -1,12 +1,12 @@
 import unittest
 from unittest.mock import patch, MagicMock
 from itertools import cycle
-from skaven_soundscape.lighting import skaven_flicker_breathe
+from skaven.lighting import skaven_flicker_breathe
 
 
 class TestLightingEffects(unittest.TestCase):
-    @patch("skaven_soundscape.lighting.time")
-    @patch("skaven_soundscape.lighting.random")
+    @patch("skaven.lighting.time")
+    @patch("skaven.lighting.random")
     def test_skaven_flicker_breathe(
         self,
         mock_random: MagicMock,
@@ -23,10 +23,10 @@ class TestLightingEffects(unittest.TestCase):
 
         # Mock NeoPixel object
         pixels_mock = MagicMock()
-        with patch("skaven_soundscape.lighting.pixels", pixels_mock):
+        with patch("skaven.lighting.pixels", pixels_mock):
             # Run the function for a single iteration
             with patch(
-                "skaven_soundscape.lighting.time.sleep",
+                "skaven.lighting.time.sleep",
                 return_value=None,
             ):
                 try:
@@ -42,7 +42,7 @@ class TestLightingEffects(unittest.TestCase):
         # Mock NeoPixel object
         pixels_mock = MagicMock()
         with patch(
-            "skaven_soundscape.lighting.pixels",
+            "skaven.lighting.pixels",
             pixels_mock,
         ):
             # Run one cycle, which always cleans up

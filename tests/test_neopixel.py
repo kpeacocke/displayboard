@@ -1,5 +1,5 @@
 import pytest
-from skaven_soundscape.neopixel import NeoPixel, GRB
+from skaven.neopixel import NeoPixel, GRB
 
 
 def test_neopixel_initialization() -> None:

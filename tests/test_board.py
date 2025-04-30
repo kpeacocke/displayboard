@@ -1,4 +1,4 @@
-from skaven_soundscape.board import D18
+from skaven.board import D18
 
 
 def test_d18_value() -> None:

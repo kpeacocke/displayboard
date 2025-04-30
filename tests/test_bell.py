@@ -6,8 +6,8 @@ from pytest import MonkeyPatch, CaptureFixture
 from typing import Any
 from unittest.mock import patch, MagicMock
 
-import skaven_soundscape.bell as bell
-from skaven_soundscape.bell import (
+import skaven.bell as bell
+from skaven.bell import (
     start_sound,
     stop_sound,
     move_bell,
@@ -15,11 +15,11 @@ from skaven_soundscape.bell import (
 )
 
 
-@patch("skaven_soundscape.bell.pygame.mixer.music.play")
-@patch("skaven_soundscape.bell.pygame.mixer.music.set_volume")
-@patch("skaven_soundscape.bell.pygame.mixer.music.load")
-@patch("skaven_soundscape.bell.random.randint")
-@patch("skaven_soundscape.bell.random.uniform")
+@patch("skaven.bell.pygame.mixer.music.play")
+@patch("skaven.bell.pygame.mixer.music.set_volume")
+@patch("skaven.bell.pygame.mixer.music.load")
+@patch("skaven.bell.random.randint")
+@patch("skaven.bell.random.uniform")
 def test_start_sound(
     mock_uniform: MagicMock,
     mock_randint: MagicMock,
@@ -40,7 +40,7 @@ def test_start_sound(
     mock_play.assert_called_once_with(start=45)
 
 
-@patch("skaven_soundscape.bell.pygame.mixer.music.stop")
+@patch("skaven.bell.pygame.mixer.music.stop")
 def test_stop_sound(
     mock_stop: MagicMock,
     capsys: CaptureFixture[str],
@@ -54,10 +54,10 @@ def test_stop_sound(
     assert "🔇 Sound stopped." in captured.out
 
 
-@patch("skaven_soundscape.bell.servo")
-@patch("skaven_soundscape.bell.random.uniform")
-@patch("skaven_soundscape.bell.random.randint")
-@patch("skaven_soundscape.bell.sleep")
+@patch("skaven.bell.servo")
+@patch("skaven.bell.random.uniform")
+@patch("skaven.bell.random.randint")
+@patch("skaven.bell.sleep")
 def test_move_bell(
     mock_sleep: MagicMock,
     mock_randint: MagicMock,
@@ -74,12 +74,12 @@ def test_move_bell(
     assert mock_sleep.call_count == 3
 
 
-@patch("skaven_soundscape.bell.start_sound")
-@patch("skaven_soundscape.bell.move_bell")
-@patch("skaven_soundscape.bell.stop_sound")
-@patch("skaven_soundscape.bell.random.uniform")
-@patch("skaven_soundscape.bell.random.random")
-@patch("skaven_soundscape.bell.sleep")
+@patch("skaven.bell.start_sound")
+@patch("skaven.bell.move_bell")
+@patch("skaven.bell.stop_sound")
+@patch("skaven.bell.random.uniform")
+@patch("skaven.bell.random.random")
+@patch("skaven.bell.sleep")
 def test_random_trigger_loop(
     mock_sleep: MagicMock,
     mock_random: MagicMock,
@@ -101,12 +101,12 @@ def test_random_trigger_loop(
     mock_stop_sound.assert_called_once()
 
 
-@patch("skaven_soundscape.bell.start_sound")
-@patch("skaven_soundscape.bell.move_bell")
-@patch("skaven_soundscape.bell.stop_sound")
-@patch("skaven_soundscape.bell.random.uniform")
-@patch("skaven_soundscape.bell.random.random")
-@patch("skaven_soundscape.bell.sleep")
+@patch("skaven.bell.start_sound")
+@patch("skaven.bell.move_bell")
+@patch("skaven.bell.stop_sound")
+@patch("skaven.bell.random.uniform")
+@patch("skaven.bell.random.random")
+@patch("skaven.bell.sleep")
 def test_random_not_trigger_loop(
     mock_sleep: MagicMock,
     mock_random: MagicMock,
@@ -157,7 +157,7 @@ def test_mixer_init_success(monkeypatch: pytest.MonkeyPatch) -> None:
 
     monkeypatch.setattr(pygame.mixer, "init", fake_init)
     # Reload bell module to trigger init
-    import skaven_soundscape.bell as bell_mod
+    import skaven.bell as bell_mod
 
     importlib.reload(bell_mod)
     assert called, "pygame.mixer.init was not called on reload"
