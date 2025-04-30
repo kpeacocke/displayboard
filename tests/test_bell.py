@@ -3,6 +3,7 @@ import importlib
 import pygame
 import pytest
 from pytest import MonkeyPatch, CaptureFixture
+from typing import Any
 from unittest.mock import patch, MagicMock
 
 import skaven_soundscape.bell as bell
@@ -172,3 +173,18 @@ def test_mixer_init_failure(monkeypatch: pytest.MonkeyPatch) -> None:
     bell_mod = importlib.reload(bell)
     # Ensure module loaded and sound_file still available
     assert hasattr(bell_mod, "sound_file")
+
+
+# Stub pygame mixer and music methods for all tests
+@pytest.fixture(autouse=True)
+def dummy_mixer_init(monkeypatch: MonkeyPatch) -> None:
+    def _noop(*args: Any, **kwargs: Any) -> None:
+        """No-op stub for pygame mixer methods."""
+        pass
+
+    # Stub mixer init and music methods
+    monkeypatch.setattr(pygame.mixer, "init", _noop)
+    monkeypatch.setattr(pygame.mixer.music, "stop", _noop)
+    monkeypatch.setattr(pygame.mixer.music, "load", _noop)
+    monkeypatch.setattr(pygame.mixer.music, "set_volume", _noop)
+    monkeypatch.setattr(pygame.mixer.music, "play", _noop)

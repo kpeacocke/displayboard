@@ -11,7 +11,7 @@ servo = Servo(
     max_pulse_width=0.0025,
 )
 
-# Initialize pygame mixer  # pragma: no cover
+# Initialize pygame mixer
 try:
     pygame.mixer.init()
 except pygame.error:
