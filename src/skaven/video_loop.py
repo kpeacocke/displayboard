@@ -4,16 +4,16 @@ import sys
 import time
 import platform
 
-VIDEO_PATH = "assets/video/skaven_loop.mp4"
+VIDEO_PATH = "src/assets/video/skaven_loop.mp4"
 
 
-def check_omxplayer_installed() -> None:
-    # Skip omxplayer requirement on non-Linux platforms (e.g. macOS)
+def check_mpv_installed() -> None:
+    # Skip MPV requirement on non-Linux platforms (e.g. macOS)
     if platform.system() != "Linux":
         return
-    if shutil.which("omxplayer") is None:
-        print("❌ Error: omxplayer not installed.")
-        print("👉 Install it with: sudo apt install omxplayer")
+    if shutil.which("mpv") is None:
+        print("❌ Error: MPV not installed.")
+        print("👉 Install it with: sudo apt install mpv")
         sys.exit(1)
 
 
@@ -22,13 +22,10 @@ def play_video_loop() -> None:
         try:
             subprocess.run(
                 [
-                    "omxplayer",
-                    "--no-osd",
+                    "mpv",
+                    "--fullscreen",
                     "--loop",
-                    "--aspect-mode",
-                    "fill",
-                    "--display",
-                    "0",
+                    "--no-terminal",
                     VIDEO_PATH,
                 ],
                 check=True,
@@ -42,5 +39,5 @@ def play_video_loop() -> None:
 
 
 def main() -> None:
-    check_omxplayer_installed()
+    check_mpv_installed()
     play_video_loop()

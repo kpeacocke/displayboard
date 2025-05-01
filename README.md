@@ -24,30 +24,39 @@ Optional: Raspberry Pi + GPIO hardware for effects
 
 ⚙️ Setup
 
+```bash
 git clone <https://github.com/kpeacocke/skaven-soundscape.git>
 cd skaven-soundscape
 
 poetry install
-poetry run python -m skaven_soundscape.main
+make run  # Start the soundscape
+```
 
 🧪 Testing, Linting, Type Checking
 
 Run them all:
 
+```bash
 make check
+```
 
 Individually:
 
+```bash
 make lint      # ruff + black
 make format    # autoformat code
 make test      # pytest
 make coverage  # text summary
 make coverage-html
 make type      # mypy
+make package   # Build a distributable package
+```
 
 🧼 Pre-commit Hook Setup
 
+```bash
 make precommit-install
+```
 
 Will auto-run:
 

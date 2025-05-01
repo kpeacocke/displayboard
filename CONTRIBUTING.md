@@ -26,6 +26,18 @@ make precommit-install
 
 This installs pre-commit hooks for formatting, linting, typing, and commit message enforcement.
 
+### Running the Project
+
+```bash
+make run  # Start the soundscape
+```
+
+### Building a Package
+
+```bash
+make package  # Build a distributable package
+```
+
 ---
 
 ## ✅ Contributing Guidelines

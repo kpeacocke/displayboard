@@ -5,7 +5,7 @@ install:
 	poetry install
 
 run:
-	poetry run python -m skaven_soundscape.main
+	poetry run python -m skaven.main
 
 test:
 	poetry run pytest
@@ -21,7 +21,7 @@ coverage-html:
 
 lint:
 	poetry run ruff check .
-	poetry run mypy skaven_soundscape
+	poetry run mypy src
 	poetry run black --check .
 
 format:
@@ -63,3 +63,6 @@ apply-ruleset-develop:
 	  -H "Accept: application/vnd.github+json" \
 	  https://api.github.com/repos/$(REPO_OWNER)/$(REPO_NAME)/rulesets \
 	  -d @rulesets/ruleset-develop.json
+
+package:
+	poetry build
