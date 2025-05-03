@@ -74,6 +74,17 @@ def test_move_bell(
     assert mock_sleep.call_count == 3
 
 
+@patch("skaven.bell.servo")
+@patch("skaven.bell.random.randint")
+@patch("builtins.print")
+def test_move_bell_print(
+    mock_print: MagicMock, mock_randint: MagicMock, mock_servo: MagicMock
+) -> None:
+    mock_randint.return_value = 3
+    move_bell()
+    mock_print.assert_any_call("🔔 Bell will swing 3 times.")
+
+
 @patch("skaven.bell.start_sound")
 @patch("skaven.bell.move_bell")
 @patch("skaven.bell.stop_sound")
@@ -99,6 +110,18 @@ def test_random_trigger_loop(
     mock_start_sound.assert_called_once()
     mock_move_bell.assert_called_once()
     mock_stop_sound.assert_called_once()
+
+
+@patch("skaven.bell.random.uniform")
+@patch("builtins.print")
+def test_random_trigger_loop_print(
+    mock_print: MagicMock, mock_uniform: MagicMock
+) -> None:
+    mock_uniform.return_value = 15
+    with patch("skaven.bell.sleep", side_effect=KeyboardInterrupt):
+        with pytest.raises(KeyboardInterrupt):
+            random_trigger_loop()
+    mock_print.assert_any_call("⏳ Waiting 15.0 seconds...")
 
 
 @patch("skaven.bell.start_sound")
@@ -133,6 +156,9 @@ def test_main_keyboard_interrupt(
     monkeypatch: MonkeyPatch,
     capfd: CaptureFixture[str],
 ) -> None:
+    # Mock gpiozero pin factory to avoid hardware dependency
+    monkeypatch.setattr("gpiozero.devices.Device.pin_factory", MagicMock())
+
     def raise_interrupt() -> None:
         raise KeyboardInterrupt
 
@@ -146,6 +172,21 @@ def test_main_keyboard_interrupt(
     servo_mock.mid.assert_called_once()
     captured = capfd.readouterr()
     assert "🛑 Exiting... setting bell to neutral." in captured.out
+
+
+@patch("skaven.bell.servo")
+@patch("skaven.bell.stop_sound")
+@patch("skaven.bell.random_trigger_loop", side_effect=KeyboardInterrupt)
+def test_main_exception_handling(
+    mock_random_trigger_loop: MagicMock,
+    mock_stop_sound: MagicMock,
+    mock_servo: MagicMock,
+) -> None:
+    mock_servo.mid.side_effect = Exception("Servo error")
+    with patch("builtins.print") as mock_print:
+        bell.main()
+    mock_stop_sound.assert_called_once()
+    mock_print.assert_any_call("🛑 Exiting... setting bell to neutral.")
 
 
 def test_mixer_init_success(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -188,3 +229,124 @@ def dummy_mixer_init(monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setattr(pygame.mixer.music, "load", _noop)
     monkeypatch.setattr(pygame.mixer.music, "set_volume", _noop)
     monkeypatch.setattr(pygame.mixer.music, "play", _noop)
+
+
+@patch("skaven.bell.servo", None)
+def test_move_bell_runtime_error() -> None:
+    with pytest.raises(RuntimeError, match="Servo not initialized. Check setup."):
+        move_bell()
+
+
+# Test that main initializes servo when None and exits on KeyboardInterrupt.
+def test_main_initializes_servo_and_exits(monkeypatch: pytest.MonkeyPatch) -> None:
+    import skaven.bell as bell_module
+
+    # Ensure servo is None
+    monkeypatch.setattr(bell_module, "servo", None)
+    # Mock Servo constructor to return MagicMock
+    mock_servo = MagicMock()
+    monkeypatch.setattr(bell_module, "Servo", lambda *a, **k: mock_servo)
+    # Patch random_trigger_loop to immediately raise KeyboardInterrupt
+    monkeypatch.setattr(
+        bell_module,
+        "random_trigger_loop",
+        lambda: (_ for _ in ()).throw(KeyboardInterrupt()),
+    )
+    # Capture prints
+    with patch("builtins.print") as mock_print:
+        bell_module.main()
+    # Servo should be set and mid called
+    assert bell_module.servo is mock_servo
+    mock_servo.mid.assert_called_once()
+    mock_print.assert_any_call("🛑 Exiting... setting bell to neutral.")
+
+
+def test_wait_print_direct(capsys: CaptureFixture[str]) -> None:
+    """
+    Direct test of random_trigger_loop prints waiting time and then exits.
+    """
+    import random
+
+    def mock_uniform(a: float, b: float) -> float:
+        return 12.3
+
+    def mock_sleep(t: float) -> None:
+        raise KeyboardInterrupt
+
+    random.uniform = mock_uniform
+    with patch("skaven.bell.sleep", mock_sleep):
+        with pytest.raises(KeyboardInterrupt):
+            random_trigger_loop()
+
+    captured = capsys.readouterr()
+    assert "⏳ Waiting 12.3 seconds..." in captured.out
+
+
+@patch("skaven.bell.random.uniform")
+@patch("builtins.print")
+def test_random_trigger_loop_wait_time(
+    mock_print: MagicMock, mock_uniform: MagicMock
+) -> None:
+    mock_uniform.return_value = 15
+    with patch("skaven.bell.sleep", side_effect=KeyboardInterrupt):
+        with pytest.raises(KeyboardInterrupt):
+            random_trigger_loop()
+    mock_print.assert_any_call("⏳ Waiting 15.0 seconds...")
+
+
+def test_random_wait_time_in_output(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """
+    Ensure the waiting time print in random_trigger_loop appears in stdout.
+    """
+    # Force a specific wait_time
+    monkeypatch.setattr("skaven.bell.random.uniform", lambda a, b: 20.4)
+
+    # Stop after first sleep
+    def stop_sleep(t: float) -> None:
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr("skaven.bell.sleep", stop_sleep)
+    with pytest.raises(KeyboardInterrupt):
+        random_trigger_loop()
+
+    captured = capsys.readouterr()
+    assert "⏳ Waiting 20.4 seconds..." in captured.out
+
+
+def test_script_entry_point(monkeypatch: pytest.MonkeyPatch) -> None:
+    """
+    Test running bell.py as a script with KeyboardInterrupt.
+    """
+    # Mock gpiozero pin factory to avoid hardware dependency
+    monkeypatch.setattr("gpiozero.devices.Device.pin_factory", MagicMock())
+    # Use mock pin factory to avoid gpiozero trying to connect to pigpio
+    monkeypatch.setenv("GPIOZERO_PIN_FACTORY", "mock")
+    # Mock Servo constructor to return a MagicMock
+    mock_servo = MagicMock()
+    mock_servo._value = 0.0  # Simulate the `value` attribute
+
+    def get_value(self: MagicMock) -> float:
+        return float(self._value)
+
+    def set_value(self: MagicMock, val: float) -> None:
+        if val is not None and not (-1 <= val <= 1):
+            raise ValueError("Servo value must be between -1 and 1, or None")
+        self._value = val
+
+    type(mock_servo).value = property(get_value, set_value)
+    monkeypatch.setattr("skaven.bell.Servo", lambda *args, **kwargs: mock_servo)
+
+    # Mock random_trigger_loop to immediately raise KeyboardInterrupt
+    def mock_random_trigger_loop() -> None:
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr("skaven.bell.random_trigger_loop", mock_random_trigger_loop)
+
+    # Call main() to trigger our patched random_trigger_loop and handle exit
+    with patch("builtins.print") as mock_print:
+        bell.main()
+    # After completion, servo.mid() should be called and exit printed
+    mock_servo.mid.assert_called_once()
+    mock_print.assert_any_call("🛑 Exiting... setting bell to neutral.")

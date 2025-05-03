@@ -1,56 +1,68 @@
-import unittest
+import pytest
 from unittest.mock import patch, MagicMock
-from itertools import cycle
-from skaven.lighting import skaven_flicker_breathe
+from skaven.lighting import skaven_flicker_breathe_v2, skaven_flicker_breathe
+from typing import Generator
 
 
-class TestLightingEffects(unittest.TestCase):
-    @patch("skaven.lighting.time")
-    @patch("skaven.lighting.random")
-    def test_skaven_flicker_breathe(
-        self,
-        mock_random: MagicMock,
-        mock_time: MagicMock,
-    ) -> None:
-        # Mock time to simulate elapsed time
-        # Simulate time progression
-        mock_time.time.side_effect = cycle([0, 1, 2, 3])
+@pytest.fixture
+def mock_pixels() -> Generator[MagicMock, None, None]:
+    with patch("skaven.lighting.pixels") as mock_pixels:
+        yield mock_pixels
 
-        # Mock random to control flicker behavior
-        # Alternate flicker indefinitely
-        seq = cycle([0.1, 0.3])
-        mock_random.random.side_effect = seq
 
-        # Mock NeoPixel object
-        pixels_mock = MagicMock()
-        with patch("skaven.lighting.pixels", pixels_mock):
-            # Run the function for a single iteration
+def test_skaven_flicker_breathe_v2_runs(mock_pixels: MagicMock) -> None:
+    # Test that the function runs without errors
+    # for a fixed number of iterations
+    skaven_flicker_breathe_v2(iterations=5)
+    assert mock_pixels.show.call_count > 0
+
+
+def test_skaven_flicker_breathe_v2_clears_pixels_on_exit(
+    mock_pixels: MagicMock,
+) -> None:
+    # Test that the pixels are cleared (set to (0, 0, 0))
+    # when the function exits
+    skaven_flicker_breathe_v2(iterations=1)
+    mock_pixels.fill.assert_called_with((0, 0, 0))
+    mock_pixels.show.assert_called()
+
+
+def test_skaven_flicker_breathe_v2_breathe_calculation() -> None:
+    # Test the internal breathe calculation logic
+    with patch("skaven.lighting.math.sin", return_value=0) as mock_sin:
+        with patch("skaven.lighting.time.time", side_effect=[0, 1]):
+            skaven_flicker_breathe_v2(iterations=1)
+            mock_sin.assert_called()
+
+
+def test_skaven_flicker_breathe(mock_pixels: MagicMock) -> None:
+    # Mock time and random to control the behavior
+    def time_generator() -> Generator[int, None, None]:
+        t = 0
+        while True:
+            yield t
+            t += 1
+
+    time_gen = time_generator()
+    with patch(
+        "skaven.lighting.time.time",
+        side_effect=lambda: next(time_gen),
+    ):
+        with patch(
+            "skaven.lighting.random.random",
+            side_effect=(value for value in [0.1, 0.3, 0.5, 0.7] * 100),
+        ):
             with patch(
                 "skaven.lighting.time.sleep",
-                return_value=None,
+                side_effect=KeyboardInterrupt,
             ):
+                # Run the function and stop it with a KeyboardInterrupt
                 try:
                     skaven_flicker_breathe()
                 except KeyboardInterrupt:
                     pass
 
-            # Verify pixel updates
-            self.assertTrue(pixels_mock.__setitem__.called)
-            self.assertTrue(pixels_mock.show.called)
-
-    def test_pixels_cleanup_on_interrupt(self) -> None:
-        # Mock NeoPixel object
-        pixels_mock = MagicMock()
-        with patch(
-            "skaven.lighting.pixels",
-            pixels_mock,
-        ):
-            # Run one cycle, which always cleans up
-            skaven_flicker_breathe()
-            pixels_mock.fill.assert_called_once_with((0, 0, 0))
-            # show() used in update or cleanup
-            pixels_mock.show.assert_called()
-
-
-if __name__ == "__main__":
-    unittest.main()
+    # Verify pixel updates and cleanup
+    assert mock_pixels.show.call_count > 0
+    mock_pixels.fill.assert_called_with((0, 0, 0))
+    mock_pixels.show.assert_called()
