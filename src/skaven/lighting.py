@@ -1,8 +1,12 @@
 import time
+import logging
 import random
 import math
 from skaven.board import D18
 from skaven.neopixel import NeoPixel, GRB
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 # --- Setup ---
 LED_COUNT = 30  # Number of LEDs
@@ -57,7 +61,7 @@ if __name__ == "__main__":
     try:
         skaven_flicker_breathe_v2(iterations=0)
     except KeyboardInterrupt:
-        print("🛑 Lighting effect stopped by user.")
+        logger.info("🛑 Lighting effect stopped by user.")
 # Local board pin constants and NeoPixel stubs
 
 

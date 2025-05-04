@@ -6,7 +6,9 @@ import pygame
 import random
 import time
 import threading
+import logging
 
+logger = logging.getLogger(__name__)
 
 load_dotenv()
 
@@ -119,7 +121,9 @@ def rats_loop(
 def main(stop_after: Optional[int] = None) -> None:
     # Main function logic
     if stop_after is not None:
-        print(f"Stopping after {stop_after} cycles")
+        msg = f"Stopping after {stop_after} cycles"
+        print(msg)
+        logger.info(msg)
 
     pygame.init()
     pygame.mixer.init()
