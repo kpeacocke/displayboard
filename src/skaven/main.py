@@ -61,28 +61,44 @@ def main() -> None:
     logger = logging.getLogger(__name__)
     logger.debug("Starting main with args: %s", args)
 
+    # create a shutdown event for graceful exit
+    stop_event = threading.Event()
+    threads: list[threading.Thread] = []
     if not args.no_sounds:
-        threading.Thread(
+        # Start soundscape in a thread
+        t = threading.Thread(
             target=sounds.main,
             name="SoundscapeThread",
-            daemon=True,
-        ).start()
+            daemon=False,
+        )
+        threads.append(t)
+        t.start()
 
     if not args.no_lighting:
-        threading.Thread(
+        # Start lighting effect in a thread
+        t = threading.Thread(
             target=lighting.skaven_flicker_breathe,
             name="LightingThread",
-            daemon=True,
-        ).start()
+            daemon=False,
+        )
+        threads.append(t)
+        t.start()
 
     try:
         if not args.no_video:
             video_loop.main()
         else:
-            while True:
+            while not stop_event.is_set():
                 time.sleep(1)
     except KeyboardInterrupt:
-        pass
+        # signal all loops to stop and wait for threads
+        stop_event.set()
+        for t in threads:
+            # attempt to join threads, skip if not supported
+            try:
+                t.join()
+            except AttributeError:
+                pass
 
 
 if __name__ == "__main__":

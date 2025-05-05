@@ -42,13 +42,15 @@ def ambient_loop(
     ambient_files: List[Path],
     fade_ms: int,
     volume: float,
+    stop_event: Optional[threading.Event] = None,
 ) -> None:
     """Continuously cross‑fade through your ambient tracks, if any."""
     if not ambient_files:
         return
+    event = stop_event or threading.Event()
     chan = pygame.mixer.Channel(0)
     idx = 0
-    while True:
+    while not event.is_set():
         snd = pygame.mixer.Sound(str(ambient_files[idx]))
         snd.set_volume(volume)
         chan.play(snd, fade_ms=fade_ms)
@@ -61,11 +63,15 @@ def ambient_loop(
         idx = (idx + 1) % len(ambient_files)
 
 
-def chains_loop(chain_files: List[Path]) -> None:
+def chains_loop(
+    chain_files: List[Path],
+    stop_event: Optional[threading.Event] = None,
+) -> None:
     """Every 15–120 s play exactly one chain sound at random ≤ 0.5 volume."""
     if not chain_files:
         return
-    while True:
+    event = stop_event or threading.Event()
+    while not event.is_set():
         time.sleep(random.uniform(15, 120))
         p = random.choice(chain_files)
         s = pygame.mixer.Sound(str(p))
@@ -73,11 +79,15 @@ def chains_loop(chain_files: List[Path]) -> None:
         s.play()
 
 
-def skaven_loop(skaven_files: List[Path]) -> None:
+def skaven_loop(
+    skaven_files: List[Path],
+    stop_event: Optional[threading.Event] = None,
+) -> None:
     """Every 20–40 s play exactly one skaven sound at random volume."""
     if not skaven_files:
         return
-    while True:
+    event = stop_event or threading.Event()
+    while not event.is_set():
         time.sleep(random.uniform(20, 40))
         track = random.choice(skaven_files)
         sfx = pygame.mixer.Sound(str(track))
@@ -88,6 +98,7 @@ def skaven_loop(skaven_files: List[Path]) -> None:
 def rats_loop(
     rat_files: List[Path],
     channels: Sequence[Any],  # channel-like objects supporting play/fadeout
+    stop_event: Optional[threading.Event] = None,
 ) -> None:
     """
     Keep at least one rat sound playing, and every 2–6 s
@@ -96,7 +107,8 @@ def rats_loop(
     """
     if not rat_files:
         return
-    while True:
+    event = stop_event or threading.Event()
+    while not event.is_set():
         # fade out current
         for c in channels:
             c.fadeout(500)
@@ -118,12 +130,18 @@ def rats_loop(
         time.sleep(random.uniform(2, 6))
 
 
-def main(stop_after: Optional[int] = None) -> None:
+def main(
+    stop_event: Optional[threading.Event] = None,
+    stop_after: Optional[int] = None,
+) -> None:
     # Main function logic
+    # Handle optional stop_after cycles
     if stop_after is not None:
         msg = f"Stopping after {stop_after} cycles"
         print(msg)
         logger.info(msg)
+    # Setup shutdown event
+    event = stop_event or threading.Event()
 
     pygame.init()
     pygame.mixer.init()
@@ -141,21 +159,21 @@ def main(stop_after: Optional[int] = None) -> None:
     # Ambient on channel 0
     threading.Thread(
         target=ambient_loop,
-        args=(ambient_files, 3000, SOUND_VOLUME),
+        args=(ambient_files, 3000, SOUND_VOLUME, event),
         daemon=True,
     ).start()
 
     # Chains anywhere
     threading.Thread(
         target=chains_loop,
-        args=(chain_files,),
+        args=(chain_files, event),
         daemon=True,
     ).start()
 
     # Skaven anywhere
     threading.Thread(
         target=skaven_loop,
-        args=(skaven_files,),
+        args=(skaven_files, event),
         daemon=True,
     ).start()
 
@@ -163,7 +181,7 @@ def main(stop_after: Optional[int] = None) -> None:
     rat_chans = [pygame.mixer.Channel(i) for i in range(1, 5)]
     threading.Thread(
         target=rats_loop,
-        args=(rat_files, rat_chans),
+        args=(rat_files, rat_chans, event),
         daemon=True,
     ).start()
 

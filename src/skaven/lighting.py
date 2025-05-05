@@ -1,6 +1,8 @@
 import time
+import threading
 import logging
 import random
+from typing import Optional
 import math
 from skaven.board import D18
 from skaven.neopixel import NeoPixel, GRB
@@ -81,10 +83,12 @@ pixels = NeoPixel(
 
 
 # --- Flicker + Breathing effect ---
-def skaven_flicker_breathe() -> None:
+def skaven_flicker_breathe(stop_event: Optional[threading.Event] = None) -> None:
     t_start = time.time()
+    # use stop_event to allow graceful shutdown
+    event = stop_event or threading.Event()
     try:
-        while True:  # Run forever
+        while not event.is_set():  # Run until signaled
             # Calculate breathing brightness (sinusoidal)
             elapsed = time.time() - t_start
 

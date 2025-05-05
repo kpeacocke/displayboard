@@ -3,6 +3,7 @@ import pygame
 import os
 from time import sleep
 import logging
+import threading
 from typing import Optional
 from gpiozero import Servo
 
@@ -58,9 +59,11 @@ def move_bell() -> None:
     servo.mid()
 
 
-def random_trigger_loop() -> None:
+def random_trigger_loop(stop_event: Optional[threading.Event] = None) -> None:
     """Main loop to randomly trigger the screaming bell."""
-    while True:
+    # use a stop_event to allow graceful exit
+    event = stop_event or threading.Event()
+    while not event.is_set():
         wait_time = random.uniform(10, 40)
         # console output for tests
         print(f"⏳ Waiting {wait_time:.1f} seconds...")
