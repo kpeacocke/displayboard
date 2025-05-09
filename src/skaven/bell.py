@@ -178,6 +178,10 @@ def main(stop_event: Optional[threading.Event] = None) -> None:
 
     except KeyboardInterrupt:
         logging.getLogger(__name__).info("KeyboardInterrupt received, shutting down.")
+    except pygame.error as e:
+        logging.getLogger(__name__).error(
+            f"Pygame error in main loop: {e}", exc_info=True
+        )
     except Exception as e:
         logging.getLogger(__name__).error(
             f"Unhandled exception in main loop: {e}", exc_info=True

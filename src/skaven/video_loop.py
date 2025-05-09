@@ -13,15 +13,22 @@ logger = logging.getLogger(__name__)
 
 
 def check_mpv_installed() -> None:
-    # Skip MPV requirement on non-Linux platforms (e.g. macOS)
-    if platform.system() != "Linux":
-        return
-    if shutil.which("mpv") is None:
-        print("❌ Error: MPV not installed.")
-        logger.error("❌ Error: MPV not installed.")
-        print("👉 Install it with: sudo apt install mpv")
-        logger.error("👉 Install it with: sudo apt install mpv")
-        sys.exit(1)
+    system = platform.system()
+    if system == "Linux":
+        if shutil.which("mpv") is None:
+            print("❌ Error: MPV not installed.")
+            logger.error("❌ Error: MPV not installed.")
+            print("👉 Install it with: sudo apt install mpv")
+            logger.error("👉 Install it with: sudo apt install mpv")
+            sys.exit(1)
+    elif system == "Darwin":
+        if shutil.which("mpv") is None:
+            print("❌ Error: MPV not installed.")
+            logger.error("❌ Error: MPV not installed.")
+            print("👉 Install it with: brew install mpv")
+            logger.error("👉 Install it with: brew install mpv")
+            sys.exit(1)
+    # On other systems, skip check
 
 
 def play_video_loop(stop_event: Optional[threading.Event] = None) -> None:
@@ -60,17 +67,27 @@ def handle_video_process(
                 str(config.VIDEO_FILE),
             ]
             return subprocess.Popen(cmd)
-    except FileNotFoundError:
+    except FileNotFoundError as e:
         logger.error(
-            "mpv command not found. Please ensure it is installed and in PATH."
+            "mpv command not found. Please ensure it is installed and in PATH. Exception: %s",
+            e,
         )
         return None
     except subprocess.CalledProcessError as e:
+        logger.error(
+            "mpv process returned a non-zero exit status: %s",
+            e,
+        )
         handle_process_error(process, e)
     except KeyboardInterrupt:
         handle_keyboard_interrupt()
         return None
     except Exception as e:
+        logger.error(
+            "Unexpected error in handle_video_process: %s",
+            e,
+            exc_info=True,
+        )
         handle_unexpected_error(process, e)
     return process
 

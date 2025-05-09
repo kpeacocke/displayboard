@@ -165,91 +165,98 @@ def main(
     # Setup shutdown event
     event = stop_event or threading.Event()
 
-    pygame.init()
-    pygame.mixer.init()
-    pygame.mixer.set_num_channels(config.SOUND_NUM_CHANNELS)  # Use config
-
-    sounds_dir = config.SOUNDS_DIR  # Use config path
-    cats = load_sound_categories(sounds_dir)
-    ambient_files = cats["ambient"]
-    rat_files = cats["rats"]
-    chain_files = cats["chains"]
-    scream_files = cats["screams"]
-    skaven_files = cats["skaven"]
-
-    # Initialize rat_chans here to ensure it's defined for the shutdown logic
-    rat_chans: List[Any] = []
-
-    # Ambient on channel 0
-    if ambient_files:
-        threading.Thread(
-            target=ambient_loop,
-            args=(
-                ambient_files,
-                config.AMBIENT_FADE_MS,
-                config.SOUND_VOLUME_DEFAULT,  # Use default volume
-                event,
-            ),
-            daemon=True,
-        ).start()
-
-    # Chains anywhere
-    if chain_files:
-        threading.Thread(
-            target=chains_loop,
-            args=(chain_files, event),
-            daemon=True,
-        ).start()
-
-    # Skaven anywhere
-    if skaven_files:
-        threading.Thread(
-            target=skaven_loop,
-            args=(skaven_files, event),
-            daemon=True,
-        ).start()
-
-    # Rats on channels 1–4
-    if rat_files:
-        rat_chans = [
-            pygame.mixer.Channel(i)
-            for i in range(config.RATS_CHANNEL_START, config.RATS_CHANNEL_END)
-        ]
-        threading.Thread(
-            target=rats_loop,
-            args=(rat_files, rat_chans, event),
-            daemon=True,
-        ).start()
-
-    # Main thread: scream SFX every 2 minutes
     try:
-        # Play a scream immediately if available (for test coverage and logic)
-        if scream_files:
-            p = random.choice(scream_files)
-            s = pygame.mixer.Sound(str(p))
-            s.set_volume(config.SOUND_VOLUME_DEFAULT)
-            s.play()
-        while not event.wait(timeout=config.MAIN_SCREAM_INTERVAL_S):
-            if not scream_files:
-                continue
-            p = random.choice(scream_files)
-            s = pygame.mixer.Sound(str(p))
-            s.set_volume(config.SOUND_VOLUME_DEFAULT)
-            s.play()
-    except KeyboardInterrupt:
-        # graceful shutdown
-        logger.info("KeyboardInterrupt received, shutting down sound loops...")
-        event.set()  # Signal threads to stop
-        pygame.mixer.Channel(config.AMBIENT_CHANNEL).fadeout(
-            config.MAIN_AMBIENT_FADEOUT_MS
-        )
-        for c in rat_chans:
-            c.fadeout(config.MAIN_RATS_FADEOUT_MS)
+        pygame.init()
+        pygame.mixer.init()
+        pygame.mixer.set_num_channels(config.SOUND_NUM_CHANNELS)  # Use config
+
+        sounds_dir = config.SOUNDS_DIR  # Use config path
+        cats = load_sound_categories(sounds_dir)
+        ambient_files = cats["ambient"]
+        rat_files = cats["rats"]
+        chain_files = cats["chains"]
+        scream_files = cats["screams"]
+        skaven_files = cats["skaven"]
+
+        # Initialize rat_chans here to ensure it's defined for the shutdown logic
+        rat_chans: List[Any] = []
+
+        # Ambient on channel 0
+        if ambient_files:
+            threading.Thread(
+                target=ambient_loop,
+                args=(
+                    ambient_files,
+                    config.AMBIENT_FADE_MS,
+                    config.SOUND_VOLUME_DEFAULT,  # Use default volume
+                    event,
+                ),
+                daemon=True,
+            ).start()
+
+        # Chains anywhere
+        if chain_files:
+            threading.Thread(
+                target=chains_loop,
+                args=(chain_files, event),
+                daemon=True,
+            ).start()
+
+        # Skaven anywhere
+        if skaven_files:
+            threading.Thread(
+                target=skaven_loop,
+                args=(skaven_files, event),
+                daemon=True,
+            ).start()
+
+        # Rats on channels 1–4
+        if rat_files:
+            rat_chans = [
+                pygame.mixer.Channel(i)
+                for i in range(config.RATS_CHANNEL_START, config.RATS_CHANNEL_END)
+            ]
+            threading.Thread(
+                target=rats_loop,
+                args=(rat_files, rat_chans, event),
+                daemon=True,
+            ).start()
+
+        # Main thread: scream SFX every 2 minutes
         try:
-            # Wait for fadeouts to complete
-            time.sleep(config.MAIN_SHUTDOWN_WAIT_S)
+            # Play a scream immediately if available (for test coverage and logic)
+            if scream_files:
+                p = random.choice(scream_files)
+                s = pygame.mixer.Sound(str(p))
+                s.set_volume(config.SOUND_VOLUME_DEFAULT)
+                s.play()
+            while not event.wait(timeout=config.MAIN_SCREAM_INTERVAL_S):
+                if not scream_files:
+                    continue
+                p = random.choice(scream_files)
+                s = pygame.mixer.Sound(str(p))
+                s.set_volume(config.SOUND_VOLUME_DEFAULT)
+                s.play()
         except KeyboardInterrupt:
-            pass
+            # graceful shutdown
+            logger.info("KeyboardInterrupt received, shutting down sound loops...")
+            event.set()  # Signal threads to stop
+            pygame.mixer.Channel(config.AMBIENT_CHANNEL).fadeout(
+                config.MAIN_AMBIENT_FADEOUT_MS
+            )
+            for c in rat_chans:
+                c.fadeout(config.MAIN_RATS_FADEOUT_MS)
+            try:
+                # Wait for fadeouts to complete
+                time.sleep(config.MAIN_SHUTDOWN_WAIT_S)
+            except KeyboardInterrupt:
+                pass
+    except pygame.error as e:
+        logger.critical(f"Pygame error in sounds main: {e}", exc_info=True)
+        raise
+    except Exception as e:
+        logger.critical(f"Unhandled exception in sounds main: {e}", exc_info=True)
+        raise
 
 
 if __name__ == "__main__":  # pragma: no cover
