@@ -29,6 +29,7 @@ poetry.lock
 
 # Testing & Coverage
 .coverage
+.coverage.*
 coverage.xml
 htmlcov/
 
