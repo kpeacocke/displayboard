@@ -46,7 +46,10 @@ def test_check_mpv_installed_linux_not_installed(
 def test_check_mpv_installed_non_linux(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    import shutil
+
     monkeypatch.setattr(platform, "system", lambda: "Darwin")
+    monkeypatch.setattr(shutil, "which", lambda x: "/usr/local/bin/mpv")
     # Should not raise or exit
     video_loop.check_mpv_installed()
 
