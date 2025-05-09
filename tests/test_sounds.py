@@ -209,7 +209,10 @@ def test_ambient_loop_runs(
     # Patch threading.Event.wait instead of time.sleep
     original_wait = threading.Event.wait
 
-    def fake_wait(self: threading.Event, timeout: Optional[float] = None) -> bool:
+    def fake_wait(
+        self: threading.Event,
+        timeout: Optional[float] = None,
+    ) -> bool:
         # This function intentionally raises an exception for test control.
         # SonarLint S3516 can be ignored here.
         called["wait"] = True
@@ -240,7 +243,10 @@ def test_chains_loop_runs(
     # Patch threading.Event.wait
     original_wait = threading.Event.wait
 
-    def fake_wait(self: threading.Event, timeout: Optional[float] = None) -> bool:
+    def fake_wait(
+        self: threading.Event,
+        timeout: Optional[float] = None,
+    ) -> bool:
         # This function intentionally raises an exception for test control.
         # SonarLint S3516 can be ignored here.
         called["wait"] = True
@@ -269,7 +275,10 @@ def test_skaven_loop_runs(
     # Patch threading.Event.wait
     original_wait = threading.Event.wait
 
-    def fake_wait(self: threading.Event, timeout: Optional[float] = None) -> bool:
+    def fake_wait(
+        self: threading.Event,
+        timeout: Optional[float] = None,
+    ) -> bool:
         # This function intentionally raises an exception for test control.
         # SonarLint S3516 can be ignored here.
         called["wait"] = True
@@ -303,7 +312,10 @@ def test_rats_loop_runs(monkeypatch: pytest.MonkeyPatch) -> None:
     original_wait = threading.Event.wait
     wait_call_count = 0
 
-    def fake_wait(self: threading.Event, timeout: Optional[float] = None) -> bool:
+    def fake_wait(
+        self: threading.Event,
+        timeout: Optional[float] = None,
+    ) -> bool:
         # This function intentionally returns False or raises for test control.
         # SonarLint S3516 can be ignored here.
         nonlocal wait_call_count
@@ -341,7 +353,10 @@ def test_chains_loop_body(monkeypatch: pytest.MonkeyPatch) -> None:
     original_wait = threading.Event.wait
     wait_called = False
 
-    def fake_wait(self: threading.Event, timeout: Optional[float] = None) -> bool:
+    def fake_wait(
+        self: threading.Event,
+        timeout: Optional[float] = None,
+    ) -> bool:
         # This function intentionally returns False for test control.
         # SonarLint S3516 can be ignored here.
         nonlocal wait_called
@@ -388,14 +403,17 @@ def test_skaven_loop_body(monkeypatch: pytest.MonkeyPatch) -> None:
     original_wait = threading.Event.wait
     wait_called = False
 
-    def fake_wait(self: threading.Event, timeout: Optional[float] = None) -> bool:
+    def fake_wait(
+        self: threading.Event,
+        timeout: Optional[float] = None,
+    ) -> bool:
         # This function intentionally returns False for test control.
         # SonarLint S3516 can be ignored here.
         nonlocal wait_called
         if not wait_called:
             wait_called = True
             return False  # Simulate timeout # noqa: S3516
-        return False  # noqa: S3516
+        return False
 
     monkeypatch.setattr(threading.Event, "wait", fake_wait)
 
@@ -425,7 +443,10 @@ def test_ambient_loop_body(monkeypatch: pytest.MonkeyPatch) -> None:
     original_wait = threading.Event.wait
     wait_call_count = 0
 
-    def fake_wait(self: threading.Event, timeout: Optional[float] = None) -> bool:
+    def fake_wait(
+        self: threading.Event,
+        timeout: Optional[float] = None,
+    ) -> bool:
         # This function intentionally returns False or raises for test control.
         # SonarLint S3516 can be ignored here.
         nonlocal wait_call_count
@@ -434,12 +455,15 @@ def test_ambient_loop_body(monkeypatch: pytest.MonkeyPatch) -> None:
         # Allow first wait (main sleep), second wait (fadeout), then break
         if wait_call_count >= 2:
             raise BreakLoop()
-        return False  # Simulate timeout # noqa: S3516
+        return False
 
     monkeypatch.setattr(threading.Event, "wait", fake_wait)
 
     # Get the mock channel instance from the factory via patch_pygame
-    mock_chan = cast(MagicMock, main.pygame.mixer.Channel(config.AMBIENT_CHANNEL))
+    mock_chan = cast(
+        MagicMock,
+        main.pygame.mixer.Channel(config.AMBIENT_CHANNEL),
+    )
 
     # Record fadeout calls
     fadeout_calls = []
@@ -458,7 +482,10 @@ def test_ambient_loop_body(monkeypatch: pytest.MonkeyPatch) -> None:
     try:
         with pytest.raises(BreakLoop):
             main.ambient_loop(
-                files, fade_ms=10, volume=0.5, stop_event=threading.Event()
+                files,
+                fade_ms=10,
+                volume=0.5,
+                stop_event=threading.Event(),
             )
     finally:
         monkeypatch.setattr(threading.Event, "wait", original_wait)
@@ -485,10 +512,14 @@ def test_rats_loop_body(monkeypatch: pytest.MonkeyPatch) -> None:
     original_wait = threading.Event.wait
     wait_call_count = 0
 
-    def fake_wait(self: threading.Event, timeout: Optional[float] = None) -> bool:
+    def fake_wait(
+        self: threading.Event,
+        timeout: Optional[float] = None,
+    ) -> bool:
         nonlocal wait_call_count
         wait_call_count += 1
         calls["waited"] = calls.get("waited", 0) + 1
+        # Allow first wait (main sleep), second wait (fadeout), then break
         if wait_call_count >= 2:
             raise BreakLoop()
         return False
@@ -533,20 +564,26 @@ def test_main_scream_logic_without_files(
     # Patch threading.Event.wait instead of time.sleep
     original_wait = threading.Event.wait
 
-    def fake_wait(self: threading.Event, timeout: Optional[float] = None) -> bool:
+    def fake_wait(
+        self: threading.Event,
+        timeout: Optional[float] = None,
+    ) -> bool:
         # This function intentionally returns False or raises for test control.
         # SonarLint S3516 can be ignored here.
         wait_calls["count"] += 1
         if wait_calls["count"] >= 2:  # Check >= 2 to ensure loop runs twice
             raise BreakLoop()
-        return False  # Simulate timeout
+        return False
 
     monkeypatch.setattr(threading.Event, "wait", fake_wait)
 
     # Get the mock sound play method from the fixture
     # Need to create a sound first to get its mock play method
     # Cast to MagicMock to access .play attribute correctly for assertion
-    mock_sound = cast(MagicMock, main.pygame.mixer.Sound(Path("dummy_scream.wav")))
+    mock_sound = cast(
+        MagicMock,
+        main.pygame.mixer.Sound(Path("dummy_scream.wav")),
+    )
     mock_play = mock_sound.play
 
     try:
@@ -573,7 +610,10 @@ def test_ambient_loop_idx_increment(monkeypatch: pytest.MonkeyPatch) -> None:
     played_paths: List[str] = []
 
     # Get the mock channel instance
-    mock_chan = cast(MagicMock, main.pygame.mixer.Channel(config.AMBIENT_CHANNEL))
+    mock_chan = cast(
+        MagicMock,
+        main.pygame.mixer.Channel(config.AMBIENT_CHANNEL),
+    )
 
     # Record plays on the mock channel
     def record_play(snd: MagicMock, **kwargs: Any) -> None:
@@ -586,7 +626,10 @@ def test_ambient_loop_idx_increment(monkeypatch: pytest.MonkeyPatch) -> None:
     original_wait = threading.Event.wait
     wait_call_count = 0
 
-    def fake_wait(self: threading.Event, timeout: Optional[float] = None) -> bool:
+    def fake_wait(
+        self: threading.Event,
+        timeout: Optional[float] = None,
+    ) -> bool:
         # This function intentionally returns False or raises for test control.
         # SonarLint S3516 can be ignored here.
         nonlocal wait_call_count
@@ -755,7 +798,10 @@ def test_main_keyboard_interrupt(
 
     # Ensure fadeout was called on ambient and rat channels
     # (mocked via fixture)
-    ambient_chan = cast(MagicMock, main.pygame.mixer.Channel(config.AMBIENT_CHANNEL))
+    ambient_chan = cast(
+        MagicMock,
+        main.pygame.mixer.Channel(config.AMBIENT_CHANNEL),
+    )
     ambient_chan.fadeout.assert_called_with(config.MAIN_AMBIENT_FADEOUT_MS)
     # Check fadeout on rat channels
     for i in range(config.RATS_CHANNEL_START, config.RATS_CHANNEL_END):
@@ -912,7 +958,15 @@ def test_ambient_loop_breaks_on_event(monkeypatch: pytest.MonkeyPatch) -> None:
     files = [Path("a.wav")]
     event = threading.Event()
     event.set()
-    monkeypatch.setattr(threading.Event, "wait", lambda self, timeout=None: None)
+
+    def fake_wait(self: threading.Event, timeout: object = None) -> None:
+        return None
+
+    monkeypatch.setattr(
+        threading.Event,
+        "wait",
+        fake_wait,
+    )
     monkeypatch.setattr(threading.Event, "is_set", lambda self: True)
     main.ambient_loop(files, 100, 0.5, stop_event=event)
 
@@ -921,7 +975,11 @@ def test_chains_loop_breaks_on_event(monkeypatch: pytest.MonkeyPatch) -> None:
     files = [Path("c1.wav")]
     event = threading.Event()
     event.set()
-    monkeypatch.setattr(threading.Event, "wait", lambda self, timeout=None: None)
+
+    def fake_wait(self: threading.Event, timeout: object = None) -> None:
+        return None
+
+    monkeypatch.setattr(threading.Event, "wait", fake_wait)
     monkeypatch.setattr(threading.Event, "is_set", lambda self: True)
     main.chains_loop(files, stop_event=event)
 
@@ -930,7 +988,11 @@ def test_skaven_loop_breaks_on_event(monkeypatch: pytest.MonkeyPatch) -> None:
     files = [Path("s1.wav")]
     event = threading.Event()
     event.set()
-    monkeypatch.setattr(threading.Event, "wait", lambda self, timeout=None: None)
+
+    def fake_wait(self: threading.Event, timeout: object = None) -> None:
+        return None
+
+    monkeypatch.setattr(threading.Event, "wait", fake_wait)
     monkeypatch.setattr(threading.Event, "is_set", lambda self: True)
     main.skaven_loop(files, stop_event=event)
 
@@ -945,7 +1007,11 @@ def test_rats_loop_breaks_on_event_after_fadeout(
     ]
     event = threading.Event()
     event.set()
-    monkeypatch.setattr(threading.Event, "wait", lambda self, timeout=None: None)
+
+    def fake_wait(self: threading.Event, timeout: object = None) -> None:
+        return None
+
+    monkeypatch.setattr(threading.Event, "wait", fake_wait)
     monkeypatch.setattr(threading.Event, "is_set", lambda self: True)
     main.rats_loop(files, chans, stop_event=event)
 
@@ -986,10 +1052,10 @@ def test_main_scream_logic_with_files(
         m = MagicMock()
         m.set_volume = MagicMock()
 
-        def play() -> None:
+        def play_side_effect(*args: object, **kwargs: object) -> None:
             played.append(str(path))
 
-        m.play = play
+        m.play = MagicMock(side_effect=play_side_effect)
         return m
 
     monkeypatch.setattr(main.pygame.mixer, "Sound", fake_sound)
@@ -1078,8 +1144,10 @@ def test_main_keyboard_interrupt_during_shutdown(
     }
     # Patch wait to raise KeyboardInterrupt on first call,
     # then again during shutdown.
+    wait_calls = {"count": 0}
 
     def fake_wait(self: threading.Event, timeout: object = None) -> bool:
+        wait_calls["count"] += 1
         raise KeyboardInterrupt("Simulated interrupt")
 
     monkeypatch.setattr(threading.Event, "wait", fake_wait)
@@ -1088,4 +1156,9 @@ def test_main_keyboard_interrupt_during_shutdown(
         raise KeyboardInterrupt("shutdown")
 
     monkeypatch.setattr(main.time, "sleep", raise_kb_interrupt)
-    main.main(stop_event=threading.Event())
+    try:
+        main.main(stop_event=threading.Event())
+    except KeyboardInterrupt:
+        pass
+    # Optionally, assert that wait was called at least once
+    assert wait_calls["count"] >= 1

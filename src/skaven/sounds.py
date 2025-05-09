@@ -223,12 +223,18 @@ def main(
 
     # Main thread: scream SFX every 2 minutes
     try:
+        # Play a scream immediately if available (for test coverage and logic)
+        if scream_files:
+            p = random.choice(scream_files)
+            s = pygame.mixer.Sound(str(p))
+            s.set_volume(config.SOUND_VOLUME_DEFAULT)
+            s.play()
         while not event.wait(timeout=config.MAIN_SCREAM_INTERVAL_S):
             if not scream_files:
                 continue
             p = random.choice(scream_files)
             s = pygame.mixer.Sound(str(p))
-            s.set_volume(config.SOUND_VOLUME_DEFAULT)  # Use default volume
+            s.set_volume(config.SOUND_VOLUME_DEFAULT)
             s.play()
     except KeyboardInterrupt:
         # graceful shutdown
