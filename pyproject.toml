@@ -1,3 +1,4 @@
+line-length = 100
 [tool.poetry]
 name = "skaven-displayboard"
 version = "0.1.0"
@@ -54,6 +55,9 @@ allow_untyped_decorators = true
 
 [tool.ruff]
 line-length = 100
+[tool.flake8]
+max-line-length = 100
+extend-ignore = ["E203", "W503"]
 target-version = "py39"
 fix = true
 
