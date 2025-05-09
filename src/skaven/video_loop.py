@@ -64,7 +64,7 @@ def handle_video_process(
                 "--fullscreen",
                 "--loop",
                 "--no-terminal",
-                str(config.VIDEO_FILE),
+                str(config.VIDEO_FILE),  # Always use str for subprocess
             ]
             return subprocess.Popen(cmd)
     except FileNotFoundError as e:

@@ -38,7 +38,7 @@ def start_sound() -> None:  # Removed filename argument
         "🔊 Starting sound at %ds with volume %.2f...", start_pos, volume
     )
     try:
-        # Convert Path object to string for pygame
+        # Pass Path object as str for maximum compatibility with pygame
         pygame.mixer.music.load(str(config.BELL_SOUND_FILE))
         pygame.mixer.music.set_volume(volume)
         pygame.mixer.music.play(start=start_pos)

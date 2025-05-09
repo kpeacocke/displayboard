@@ -227,6 +227,7 @@ def main(
             # Play a scream immediately if available (for test coverage and logic)
             if scream_files:
                 p = random.choice(scream_files)
+                # Pass Path as str for maximum compatibility with pygame
                 s = pygame.mixer.Sound(str(p))
                 s.set_volume(config.SOUND_VOLUME_DEFAULT)
                 s.play()
