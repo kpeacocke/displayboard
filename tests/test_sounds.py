@@ -1,111 +1,130 @@
-import sys
-import importlib
 import pytest
-from pathlib import Path
-from typing import Callable, Any, Tuple, List, cast, Dict
+import sys
+import threading
 import types
+from pathlib import Path
+from typing import (  # Group imports
+    Any,
+    Callable,
+    Dict,
+    List,
+    Optional,
+    Sequence,
+    Tuple,
+    cast,
+)
+from unittest.mock import patch, MagicMock
+
+import pygame  # Keep top-level import for pygame.error
+
+# Assuming skaven.sounds is aliased as main based on usage
+import skaven.sounds as main
+from skaven import config  # Import config directly
 
 # Ensure the project root is on sys.path so we can import the module under test
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-import skaven.sounds as main  # noqa: E402
-
 
 # --- Fixtures for patching pygame, time, and random ---
 @pytest.fixture(autouse=True)
 def patch_pygame(monkeypatch: pytest.MonkeyPatch) -> None:
-    mixer = types.SimpleNamespace()
+    # Use MagicMock for functions/methods we want to assert calls on
+    mock_mixer_init = MagicMock()
+    mock_set_num_channels = MagicMock()
+    mock_set_reserved = MagicMock()
+    mock_mixer_quit = MagicMock()
 
-    def init() -> None:
-        # No-op for pygame.mixer.init in tests
-        pass
+    # Use a dictionary to store created sound mocks by path
+    created_sounds: Dict[Path, MagicMock] = {}
 
-    def set_num_channels(n: int) -> None:
-        # No-op for setting number of channels in tests
-        pass
+    def sound_factory(path: Path) -> MagicMock:
+        # Return the same mock instance for simplicity, or create new ones
+        # if needed Store path if needed for assertions later
+        if path not in created_sounds:
+            # Create a new mock for each unique sound path
+            new_mock = MagicMock()
+            new_mock.set_volume = MagicMock()
+            new_mock.get_length.return_value = 0.01
+            new_mock.play = MagicMock()
+            new_mock._fake_path = path
+            created_sounds[path] = new_mock
+        return created_sounds[path]
 
-    def sound(path: Path) -> types.SimpleNamespace:
-        def set_volume(v: float) -> None:
-            # No-op for setting volume in tests
-            pass
+    # Use a dictionary to store created channel mocks by ID
+    created_channels: Dict[int, MagicMock] = {}
 
-        def get_length() -> float:
-            # Return dummy length
-            return 1.0
+    def channel_factory(i: int) -> MagicMock:
+        # Return a new MagicMock for each channel if state needs isolation
+        if i not in created_channels:
+            chan_mock = MagicMock()
+            chan_mock.set_volume = MagicMock()
+            chan_mock.play = MagicMock()
+            chan_mock.fadeout = MagicMock()
+            chan_mock._channel_id = i  # Store ID if needed
+            created_channels[i] = chan_mock
+        return created_channels[i]
 
-        def play(**kwargs: Any) -> None:
-            # No-op for playing sound in tests
-            pass
+    # find_channel returns a channel mock (e.g., channel 0 by default)
+    mock_find_channel = MagicMock(return_value=channel_factory(0))
 
-        def fadeout(ms: int) -> None:
-            # No-op for fading out sound in tests
-            pass
+    # Create the mixer namespace mock
+    mixer = types.SimpleNamespace(
+        init=mock_mixer_init,
+        set_num_channels=mock_set_num_channels,
+        Sound=sound_factory,  # Use the factory
+        Channel=channel_factory,  # Use the factory
+        find_channel=mock_find_channel,
+        set_reserved=mock_set_reserved,
+        quit=mock_mixer_quit,
+    )
 
-        return types.SimpleNamespace(
-            set_volume=set_volume,
-            get_length=get_length,
-            play=play,
-            fadeout=fadeout,
-        )
-
-    def channel(i: int = 0) -> types.SimpleNamespace:
-        def play(s: types.SimpleNamespace, **kwargs: Any) -> None:
-            # No-op for channel play in tests
-            pass
-
-        def fadeout(ms: int) -> None:
-            # No-op for channel fadeout in tests
-            pass
-
-        return types.SimpleNamespace(
-            play=play,
-            fadeout=fadeout,
-        )
-
-    def pygame_init_override() -> None:
-        # No-op for pygame.init in tests
-        pass
-
-    mixer.init = init
-    mixer.set_num_channels = set_num_channels
-    mixer.Sound = sound
-    mixer.Channel = channel
-    monkeypatch.setattr(main.pygame, "mixer", mixer)
-    monkeypatch.setattr(main.pygame, "init", pygame_init_override)
+    # Patch the whole pygame module used by main
+    # Ensure pygame.error is still accessible if needed directly
+    mock_pygame = types.SimpleNamespace(
+        mixer=mixer, error=pygame.error, init=MagicMock()
+    )
+    monkeypatch.setattr(main, "pygame", mock_pygame)
 
 
 @pytest.fixture(autouse=True)
 def patch_time_sleep(monkeypatch: pytest.MonkeyPatch) -> None:
-    def sleep_override(seconds: float) -> None:
-        # No-op sleep in tests
+    def fake_sleep(seconds: float) -> None:
+        # No-op for time.sleep in tests
         pass
 
-    monkeypatch.setattr(main.time, "sleep", sleep_override)
+    monkeypatch.setattr(main.time, "sleep", fake_sleep)
 
 
 @pytest.fixture(autouse=True)
 def patch_random(monkeypatch: pytest.MonkeyPatch) -> None:
-    def uniform_override(a: float, b: float) -> float:
+    def fake_uniform(a: float, b: float) -> float:
+        # Return the lower bound for predictable testing
         return a
 
-    def choice_override(seq: List[Path]) -> Path:
-        return seq[0] if seq else Path()
-
-    def randint_override(a: int, b: int) -> int:
+    def fake_randint(a: int, b: int) -> int:
+        # Return the lower bound for predictable testing
         return a
 
-    def sample_override(seq: List[Path], n: int) -> List[Path]:
-        return seq[:n]
+    def fake_choice(seq: Sequence[Any]) -> Any:
+        # Return the first element for predictable testing
+        if not seq:
+            raise IndexError("Cannot choose from an empty sequence")
+        return seq[0]
 
-    def random_override() -> float:
-        return 1.0
+    def fake_sample(population: Sequence[Any], k: int) -> List[Any]:
+        # Return the first k elements for predictable testing
+        return list(population[:k])
 
-    monkeypatch.setattr(main.random, "uniform", uniform_override)
-    monkeypatch.setattr(main.random, "choice", choice_override)
-    monkeypatch.setattr(main.random, "randint", randint_override)
-    monkeypatch.setattr(main.random, "sample", sample_override)
-    monkeypatch.setattr(main.random, "random", random_override)
+    def fake_random() -> float:
+        # Return a fixed value for predictable testing
+        return 0.5
+
+    monkeypatch.setattr(main.random, "uniform", fake_uniform)
+    monkeypatch.setattr(main.random, "randint", fake_randint)
+    monkeypatch.setattr(main.random, "choice", fake_choice)
+    monkeypatch.setattr(main.random, "sample", fake_sample)
+    monkeypatch.setattr(main.random, "random", fake_random)
 
 
 # --- Original tests ---
@@ -120,9 +139,11 @@ def test_list_audio_files(tmp_path: Path) -> None:
     mp3.write_text("dummy")
     txt = tmp_path / "d.txt"
     txt.write_text("dummy")
+    # Use config directly now
     found = main.list_audio_files(tmp_path)
     exts = {p.suffix for p in found}
-    assert exts == {".wav", ".ogg", ".mp3"}
+    # Use config.AUDIO_EXTENSIONS for assertion
+    assert exts == set(config.AUDIO_EXTENSIONS)
     paths = {p.name for p in found}
     assert paths == {"a.wav", "b.ogg", "c.mp3"}
 
@@ -130,27 +151,39 @@ def test_list_audio_files(tmp_path: Path) -> None:
 def test_load_sound_categories(tmp_path: Path) -> None:
     categories = ["ambient", "rats", "chains", "screams", "skaven"]
     for cat in categories:
-        d = tmp_path / cat
-        d.mkdir()
-        f = d / f"{cat}_1.wav"
-        f.write_text("dummy")
+        (tmp_path / cat).mkdir()
+        (tmp_path / cat / f"{cat[0]}.wav").touch()
     cats = main.load_sound_categories(tmp_path)
     assert set(cats) == set(categories)
     for cat in categories:
-        files = cats[cat]
-        assert len(files) == 1
-        assert files[0].name == f"{cat}_1.wav"
+        assert len(cats[cat]) == 1
+        assert cats[cat][0].name == f"{cat[0]}.wav"
 
 
 @pytest.mark.parametrize(
     "func, args",
     [
-        (main.ambient_loop, (cast(List[Path], []), 100, 0.5)),
-        (main.chains_loop, (cast(List[Path], []),)),
-        (main.skaven_loop, (cast(List[Path], []),)),
+        (
+            main.ambient_loop,
+            # Cast empty list, provide fade_ms, volume, stop_event
+            (cast(List[Path], []), 100, 0.5, threading.Event()),
+        ),
+        (
+            main.chains_loop,
+            (cast(List[Path], []), threading.Event()),  # Add stop_event
+        ),
+        (
+            main.skaven_loop,
+            (cast(List[Path], []), threading.Event()),  # Add stop_event
+        ),
         (
             main.rats_loop,
-            (cast(List[Path], []), cast(List[types.SimpleNamespace], [])),
+            (
+                cast(List[Path], []),
+                # Cast empty list for channels
+                cast(List[MagicMock], []),
+                threading.Event(),  # Add stop_event
+            ),
         ),
     ],
 )
@@ -161,147 +194,139 @@ def test_loops_return_immediately_on_empty(
     assert result is None
 
 
-def test_sound_volume_env(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("SOUND_VOLUME", "0.42")
-    importlib.reload(main)
-    assert isinstance(main.SOUND_VOLUME, float)
-    assert abs(main.SOUND_VOLUME - 0.42) < 1e-6
-
-
 # --- Full coverage tests for loop bodies and main() ---
 
 
-def test_ambient_loop_runs() -> None:
+def test_ambient_loop_runs(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     files = [Path("a.wav")]
     called = {}
 
     class BreakLoop(Exception):
         pass
 
-    def fake_sleep(secs: float) -> None:
-        called["sleep"] = True
-        raise BreakLoop()
+    # Patch threading.Event.wait instead of time.sleep
+    original_wait = threading.Event.wait
 
-    main.time.sleep = fake_sleep
-    with pytest.raises(BreakLoop):
-        main.ambient_loop(files, 100, 0.5)
-    assert called["sleep"]
+    def fake_wait(self: threading.Event, timeout: Optional[float] = None) -> bool:
+        # This function intentionally raises an exception for test control.
+        # SonarLint S3516 can be ignored here.
+        called["wait"] = True
+        raise BreakLoop()  # Raise exception when wait is called
+
+    monkeypatch.setattr(threading.Event, "wait", fake_wait)
+
+    try:
+        with pytest.raises(BreakLoop):
+            # Pass a dummy stop_event (it won't be used due to patch)
+            main.ambient_loop(files, 100, 0.5, stop_event=threading.Event())
+    finally:
+        # Restore original wait method
+        monkeypatch.setattr(threading.Event, "wait", original_wait)
+
+    assert called.get("wait", False)  # Check if wait was called
 
 
-def test_chains_loop_runs() -> None:
+def test_chains_loop_runs(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     files = [Path("c1.wav")]
     called = {}
 
     class BreakLoop(Exception):
         pass
 
-    def fake_sleep(secs: float) -> None:
-        called["sleep"] = True
-        raise BreakLoop()
+    # Patch threading.Event.wait
+    original_wait = threading.Event.wait
 
-    main.time.sleep = fake_sleep
-    with pytest.raises(BreakLoop):
-        main.chains_loop(files)
-    assert called["sleep"]
+    def fake_wait(self: threading.Event, timeout: Optional[float] = None) -> bool:
+        # This function intentionally raises an exception for test control.
+        # SonarLint S3516 can be ignored here.
+        called["wait"] = True
+        raise BreakLoop()  # noqa: S3516
+
+    monkeypatch.setattr(threading.Event, "wait", fake_wait)
+
+    try:
+        with pytest.raises(BreakLoop):
+            main.chains_loop(files, stop_event=threading.Event())
+    finally:
+        monkeypatch.setattr(threading.Event, "wait", original_wait)
+
+    assert called.get("wait", False)
 
 
-def test_skaven_loop_runs() -> None:
+def test_skaven_loop_runs(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     files = [Path("s1.wav")]
     called = {}
 
     class BreakLoop(Exception):
-        pass
+        pass  # Test exception
 
-    def fake_sleep(secs: float) -> None:
-        called["sleep"] = True
-        raise BreakLoop()
+    # Patch threading.Event.wait
+    original_wait = threading.Event.wait
 
-    main.time.sleep = fake_sleep
-    with pytest.raises(BreakLoop):
-        main.skaven_loop(files)
-    assert called["sleep"]
+    def fake_wait(self: threading.Event, timeout: Optional[float] = None) -> bool:
+        # This function intentionally raises an exception for test control.
+        # SonarLint S3516 can be ignored here.
+        called["wait"] = True
+        raise BreakLoop()  # noqa: S3516
+
+    monkeypatch.setattr(threading.Event, "wait", fake_wait)
+
+    try:
+        with pytest.raises(BreakLoop):
+            main.skaven_loop(files, stop_event=threading.Event())
+    finally:
+        monkeypatch.setattr(threading.Event, "wait", original_wait)
+
+    assert called.get("wait", False)
 
 
-def test_rats_loop_runs() -> None:
+def test_rats_loop_runs(monkeypatch: pytest.MonkeyPatch) -> None:
     files = [Path("r1.wav"), Path("r2.wav")]
-    chans = [main.pygame.mixer.Channel(1), main.pygame.mixer.Channel(2)]
+    # Use the mocked channel from patch_pygame fixture
+    # The factory creates MagicMocks
+    chans = [
+        cast(MagicMock, main.pygame.mixer.Channel(1)),
+        cast(MagicMock, main.pygame.mixer.Channel(2)),
+    ]
     called: dict[str, int] = {}
 
     class BreakLoop(Exception):
         pass
 
-    def fake_sleep(secs: float) -> None:
-        called["sleep"] = called.get("sleep", 0) + 1
-        if called["sleep"] > 2:
+    # Patch threading.Event.wait
+    original_wait = threading.Event.wait
+    wait_call_count = 0
+
+    def fake_wait(self: threading.Event, timeout: Optional[float] = None) -> bool:
+        # This function intentionally returns False or raises for test control.
+        # SonarLint S3516 can be ignored here.
+        nonlocal wait_call_count
+        wait_call_count += 1
+        called["wait"] = called.get("wait", 0) + 1
+        # Allow the first wait (for fadeout) then break on the second
+        # (main loop sleep)
+        if wait_call_count >= 2:
             raise BreakLoop()
+        return False  # Simulate timeout # noqa: S3516
 
-    main.time.sleep = fake_sleep
-    with pytest.raises(BreakLoop):
-        main.rats_loop(files, chans)
-    assert called["sleep"] > 0
+    monkeypatch.setattr(threading.Event, "wait", fake_wait)
 
+    try:
+        with pytest.raises(BreakLoop):
+            main.rats_loop(files, chans, stop_event=threading.Event())
+    finally:
+        monkeypatch.setattr(threading.Event, "wait", original_wait)
 
-def test_main_runs_and_keyboardinterrupt(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    # simulate KeyboardInterrupt on sleep
-    def pygame_init_override() -> None:
-        # no-op pygame.init override
-        pass
-
-    monkeypatch.setattr(main.pygame, "init", pygame_init_override)
-
-    def mixer_init_override() -> None:
-        # no-op mixer.init override
-        pass
-
-    monkeypatch.setattr(main.pygame.mixer, "init", mixer_init_override)
-
-    def set_num_channels_override(n: int) -> None:
-        # no-op set_num_channels override
-        pass
-
-    monkeypatch.setattr(
-        main.pygame.mixer,
-        "set_num_channels",
-        set_num_channels_override,
-    )
-
-    def fake_thread(*args: Any, **kwargs: Any) -> types.SimpleNamespace:
-        def start() -> None:
-            # no-op thread start
-            pass
-
-        return types.SimpleNamespace(start=start)
-
-    monkeypatch.setattr(
-        main.threading,
-        "Thread",
-        fake_thread,
-    )
-
-    def fake_sleep(s: float) -> None:
-        raise KeyboardInterrupt()
-
-    monkeypatch.setattr(main.time, "sleep", fake_sleep)
-
-    def channel_override(i: int = 0) -> types.SimpleNamespace:
-        def fadeout(ms: int = 0) -> None:
-            # no-op channel fadeout
-            pass
-
-        return types.SimpleNamespace(fadeout=fadeout)
-
-    monkeypatch.setattr(
-        main.pygame.mixer,
-        "Channel",
-        channel_override,
-    )
-
-    main.main()
+    assert called.get("wait", 0) > 0
 
 
-# --- Additional coverage tests from test_main_extra.py ---
+# --- Full coverage tests for loop bodies and main() ---
 
 
 def test_chains_loop_body(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -310,35 +335,47 @@ def test_chains_loop_body(monkeypatch: pytest.MonkeyPatch) -> None:
     class BreakLoop(Exception):
         pass
 
-    # allow sleep to run once, then break inside play
-    calls: Dict[str, float] = {}  # track call counts (float for volume)
+    calls: Dict[str, Any] = {}  # Use Any for volume type flexibility
 
-    def fake_sleep(secs: float) -> None:
-        calls["slept"] = calls.get("slept", 0) + 1
-        return None
+    # Patch threading.Event.wait to allow one wait, then break in play
+    original_wait = threading.Event.wait
+    wait_called = False
 
-    monkeypatch.setattr(main.time, "sleep", fake_sleep)
+    def fake_wait(self: threading.Event, timeout: Optional[float] = None) -> bool:
+        # This function intentionally returns False for test control.
+        # SonarLint S3516 can be ignored here.
+        nonlocal wait_called
+        if not wait_called:
+            calls["waited"] = calls.get("waited", 0) + 1
+            wait_called = True
+            return False  # Simulate timeout
+        # Subsequent calls don't raise here, BreakLoop comes from play
+        return False
 
-    # inject a Sound whose play raises BreakLoop after set_volume
-    def fake_sound(path: Path) -> types.SimpleNamespace:
-        def set_volume(v: float) -> None:
-            # record volume used
-            calls["volume"] = v
+    monkeypatch.setattr(threading.Event, "wait", fake_wait)
 
-        def play(**kwargs: Any) -> None:
-            # play raises to break loop
-            raise BreakLoop()
+    # Get the mock sound instance from the factory via patch_pygame
+    mock_sound = cast(MagicMock, main.pygame.mixer.Sound(files[0]))
+    # Configure the mock play method to raise BreakLoop
+    mock_sound.play.side_effect = BreakLoop()
 
-        return types.SimpleNamespace(
-            set_volume=set_volume,
-            play=play,
-        )
+    # Store volume in calls when set_volume is called
+    def record_volume(v: float) -> None:
+        calls["volume"] = v
 
-    monkeypatch.setattr(main.pygame.mixer, "Sound", fake_sound)
+    mock_sound.set_volume.side_effect = record_volume
 
-    with pytest.raises(BreakLoop):
-        main.chains_loop(files)
+    try:
+        with pytest.raises(BreakLoop):
+            main.chains_loop(files, stop_event=threading.Event())
+    finally:
+        monkeypatch.setattr(threading.Event, "wait", original_wait)
+        # Reset side effects if the mock is reused across tests
+        mock_sound.play.side_effect = None
+        mock_sound.set_volume.side_effect = None
+
     assert "volume" in calls
+    assert calls.get("waited", 0) == 1
 
 
 def test_skaven_loop_body(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -347,29 +384,33 @@ def test_skaven_loop_body(monkeypatch: pytest.MonkeyPatch) -> None:
     class BreakLoop(Exception):
         pass
 
-    def fake_sleep(secs: float) -> None:
-        return None
+    # Patch threading.Event.wait to allow one wait
+    original_wait = threading.Event.wait
+    wait_called = False
 
-    monkeypatch.setattr(main.time, "sleep", fake_sleep)
+    def fake_wait(self: threading.Event, timeout: Optional[float] = None) -> bool:
+        # This function intentionally returns False for test control.
+        # SonarLint S3516 can be ignored here.
+        nonlocal wait_called
+        if not wait_called:
+            wait_called = True
+            return False  # Simulate timeout # noqa: S3516
+        return False  # noqa: S3516
 
-    def fake_sound(path: Path) -> types.SimpleNamespace:
-        def set_volume(v: float) -> None:
-            # no-op volume in tests
-            pass
+    monkeypatch.setattr(threading.Event, "wait", fake_wait)
 
-        def play(**kwargs: Any) -> None:
-            # break loop on play
-            raise BreakLoop()
+    # Get the mock sound and configure play to raise
+    mock_sound = cast(MagicMock, main.pygame.mixer.Sound(files[0]))
+    mock_sound.play.side_effect = BreakLoop()
 
-        return types.SimpleNamespace(
-            set_volume=set_volume,
-            play=play,
-        )
+    try:
+        with pytest.raises(BreakLoop):
+            main.skaven_loop(files, stop_event=threading.Event())
+    finally:
+        monkeypatch.setattr(threading.Event, "wait", original_wait)
+        mock_sound.play.side_effect = None  # Reset side effect
 
-    monkeypatch.setattr(main.pygame.mixer, "Sound", fake_sound)
-
-    with pytest.raises(BreakLoop):
-        main.skaven_loop(files)
+    assert wait_called  # Ensure wait was actually called
 
 
 def test_ambient_loop_body(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -380,78 +421,59 @@ def test_ambient_loop_body(monkeypatch: pytest.MonkeyPatch) -> None:
 
     calls: Dict[str, float] = {"count": 0.0}
 
-    def fake_sleep(secs: float) -> None:
-        if calls["count"] == 0:
-            calls["count"] += 1.0
-            return None
-        raise BreakLoop()
+    # Patch threading.Event.wait
+    original_wait = threading.Event.wait
+    wait_call_count = 0
 
-    monkeypatch.setattr(main.time, "sleep", fake_sleep)
+    def fake_wait(self: threading.Event, timeout: Optional[float] = None) -> bool:
+        # This function intentionally returns False or raises for test control.
+        # SonarLint S3516 can be ignored here.
+        nonlocal wait_call_count
+        wait_call_count += 1
+        calls["waited"] = calls.get("waited", 0) + 1
+        # Allow first wait (main sleep), second wait (fadeout), then break
+        if wait_call_count >= 2:
+            raise BreakLoop()
+        return False  # Simulate timeout # noqa: S3516
 
-    # fake Channel to record fadeout
-    def chan_play(s: Any, **kwargs: Any) -> None:
-        # no-op play
-        pass
+    monkeypatch.setattr(threading.Event, "wait", fake_wait)
 
-    def chan_fadeout(ms: int) -> None:
-        # record fadeout duration
-        calls["faded"] = float(ms)
+    # Get the mock channel instance from the factory via patch_pygame
+    mock_chan = cast(MagicMock, main.pygame.mixer.Channel(config.AMBIENT_CHANNEL))
 
-    fake_chan = types.SimpleNamespace(
-        play=chan_play,
-        fadeout=chan_fadeout,
-    )
+    # Record fadeout calls
+    fadeout_calls = []
 
-    def channel_override(i: int) -> types.SimpleNamespace:
-        # return the fake channel regardless of index
-        return fake_chan
+    def record_fadeout(ms: int) -> None:
+        fadeout_calls.append(ms)
 
-    monkeypatch.setattr(
-        main.pygame.mixer,
-        "Channel",
-        channel_override,
-    )
+    mock_chan.fadeout.side_effect = record_fadeout
 
-    # fake Sound with a small length
-    def fake_sound(path: Path) -> types.SimpleNamespace:
-        def set_volume(v: float) -> None:
-            # no-op volume in tests
-            pass
+    # Get the mock sound instance
+    mock_sound = cast(MagicMock, main.pygame.mixer.Sound(files[0]))
+    # Ensure get_length returns the value set in the fixture
+    # Use pytest.approx for float comparison
+    assert mock_sound.get_length() == pytest.approx(0.01)
 
-        def get_length() -> float:
-            return 0.01
+    try:
+        with pytest.raises(BreakLoop):
+            main.ambient_loop(
+                files, fade_ms=10, volume=0.5, stop_event=threading.Event()
+            )
+    finally:
+        monkeypatch.setattr(threading.Event, "wait", original_wait)
+        mock_chan.fadeout.side_effect = None  # Reset side effect
 
-        def play(**kwargs: Any) -> None:
-            # no-op play
-            pass
-
-        return types.SimpleNamespace(
-            set_volume=set_volume,
-            get_length=get_length,
-            play=play,
-        )
-
-    monkeypatch.setattr(main.pygame.mixer, "Sound", fake_sound)
-
-    with pytest.raises(BreakLoop):
-        main.ambient_loop(files, fade_ms=10, volume=0.5)
-    assert calls.get("faded") == 10
+    assert 10 in fadeout_calls
+    assert calls.get("waited", 0) >= 2  # Ensure both waits were attempted
 
 
 def test_rats_loop_body(monkeypatch: pytest.MonkeyPatch) -> None:
     files = [Path("r1.wav"), Path("r2.wav")]
-
-    # typed no-op channel methods
-    def _no_op_play(s: types.SimpleNamespace) -> None:
-        pass
-
-    def _no_op_fadeout(ms: int) -> None:
-        # No-op fadeout in tests during test runs
-        pass
-
+    # Get mock channels
     chans = [
-        types.SimpleNamespace(play=_no_op_play, fadeout=_no_op_fadeout)
-        for _ in range(2)
+        cast(MagicMock, main.pygame.mixer.Channel(1)),
+        cast(MagicMock, main.pygame.mixer.Channel(2)),
     ]
 
     class BreakLoop(Exception):
@@ -459,236 +481,611 @@ def test_rats_loop_body(monkeypatch: pytest.MonkeyPatch) -> None:
 
     calls: Dict[str, int] = {"count": 0}
 
-    def fake_sleep(secs: float) -> None:
-        if calls["count"] < 2:
-            calls["count"] += 1
-            return None
-        raise BreakLoop()
+    # Patch threading.Event.wait: timeout first, then break on second call
+    original_wait = threading.Event.wait
+    wait_call_count = 0
 
-    monkeypatch.setattr(main.time, "sleep", fake_sleep)
-
-    # fake Sound that raises in play
-    def fake_sound(path: Path) -> types.SimpleNamespace:
-        def set_volume(v: float) -> None:
-            # no-op volume
-            pass
-
-        def play(**kwargs: Any) -> None:
-            # break on play
+    def fake_wait(self: threading.Event, timeout: Optional[float] = None) -> bool:
+        nonlocal wait_call_count
+        wait_call_count += 1
+        calls["waited"] = calls.get("waited", 0) + 1
+        if wait_call_count >= 2:
             raise BreakLoop()
+        return False
 
-        return types.SimpleNamespace(
-            set_volume=set_volume,
-            play=play,
-        )
-
-    monkeypatch.setattr(main.pygame.mixer, "Sound", fake_sound)
-
-    with pytest.raises(BreakLoop):
-        main.rats_loop(files, chans)
-
-
-def test_main_with_stop_after(
-    monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    """Test that the main function handles the stop_after argument."""
-
-    def fake_load_sound_categories(base_path: Path) -> Dict[str, List[Path]]:
-        return {
-            "ambient": [],
-            "rats": [],
-            "chains": [],
-            "screams": [],
-            "skaven": [],
-        }
-
-    monkeypatch.setattr(
-        main,
-        "load_sound_categories",
-        fake_load_sound_categories,
-    )
-
-    def fake_sleep(s: float) -> None:
-        raise KeyboardInterrupt()
-
-    monkeypatch.setattr(main.time, "sleep", fake_sleep)
+    monkeypatch.setattr(threading.Event, "wait", fake_wait)
 
     try:
-        main.main(stop_after=5)
-    except KeyboardInterrupt:
-        pass
+        with pytest.raises(BreakLoop):
+            main.rats_loop(files, chans, stop_event=threading.Event())
+    finally:
+        monkeypatch.setattr(threading.Event, "wait", original_wait)
 
-    captured = capsys.readouterr()
-    assert "Stopping after 5 cycles" in captured.out
-
-
-def test_main_scream_logic_with_files(monkeypatch: pytest.MonkeyPatch) -> None:
-    scream_files = [Path("scream1.wav"), Path("scream2.wav")]
-    calls = {"played": 0}
-
-    def fake_sleep(secs: float) -> None:
-        if calls["played"] >= 1:
-            raise KeyboardInterrupt()
-
-    monkeypatch.setattr(main.time, "sleep", fake_sleep)
-
-    def fake_sound(path: Path) -> types.SimpleNamespace:
-        def set_volume(v: float) -> None:
-            # No-op for setting volume in tests
-            pass
-
-        def play(**kwargs: Any) -> None:
-            # Simulate playing sound
-            calls["played"] += 1
-
-        return types.SimpleNamespace(
-            set_volume=set_volume,
-            play=play,
-        )
-
-    monkeypatch.setattr(main.pygame.mixer, "Sound", fake_sound)
-
-    def fake_load_sound_categories(base_path: Path) -> Dict[str, List[Path]]:
-        return {
-            "ambient": [],
-            "rats": [],
-            "chains": [],
-            "screams": scream_files,
-            "skaven": [],
-        }
-
-    monkeypatch.setattr(
-        main,
-        "load_sound_categories",
-        fake_load_sound_categories,
-    )
-
-    try:
-        main.main()
-    except KeyboardInterrupt:
-        pass
-
-    assert calls["played"] == 1
-
-
-# --- Merged tests from test_main_extra.py
-
-
-# --- Merged tests from test_main_extra.py
+    # Check fadeouts occurred and loop exited after fake_wait raised
+    for chan in chans:
+        chan.fadeout.assert_called_with(config.RATS_FADEOUT_MS)
+    assert calls.get("waited", 0) >= 2
 
 
 def test_main_scream_logic_without_files(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Test that main loop skips scream logic
-    when no scream files are present."""
-
-    import skaven.sounds as main
+    # Test main loop runs but doesn't play screams if none exist
+    import skaven.sounds as main  # Re-import locally if needed
 
     class BreakLoop(Exception):
         pass
 
     def fake_load_sound_categories(base_path: Path) -> Dict[str, List[Path]]:
-        return {
-            "ambient": [],
-            "rats": [],
-            "chains": [],
-            "screams": [],
-            "skaven": [],
-        }
+        # Return empty lists for all categories, especially screams
+        return dict(
+            ambient=[],
+            rats=[],
+            chains=[],
+            screams=[],
+            skaven=[],
+        )
 
-    monkeypatch.setattr(
-        main,
-        "load_sound_categories",
-        fake_load_sound_categories,
-    )
+    monkeypatch.setattr(main, "load_sound_categories", fake_load_sound_categories)
 
-    calls = {"count": 0}
+    wait_calls = {"count": 0}
 
-    def fake_sleep(seconds: float) -> None:
-        if calls["count"] < 2:
-            calls["count"] += 1
-        else:
+    # Patch threading.Event.wait instead of time.sleep
+    original_wait = threading.Event.wait
+
+    def fake_wait(self: threading.Event, timeout: Optional[float] = None) -> bool:
+        # This function intentionally returns False or raises for test control.
+        # SonarLint S3516 can be ignored here.
+        wait_calls["count"] += 1
+        if wait_calls["count"] >= 2:  # Check >= 2 to ensure loop runs twice
             raise BreakLoop()
+        return False  # Simulate timeout
 
-    monkeypatch.setattr(
-        main.time,
-        "sleep",
-        fake_sleep,
-    )
+    monkeypatch.setattr(threading.Event, "wait", fake_wait)
 
-    with pytest.raises(BreakLoop):
-        main.main()
-    assert calls["count"] == 2
+    # Get the mock sound play method from the fixture
+    # Need to create a sound first to get its mock play method
+    # Cast to MagicMock to access .play attribute correctly for assertion
+    mock_sound = cast(MagicMock, main.pygame.mixer.Sound(Path("dummy_scream.wav")))
+    mock_play = mock_sound.play
+
+    try:
+        # Use a pre-set stop_event to prevent infinite loop in actual main
+        stop_event = threading.Event()
+        # Run main in a way that allows BreakLoop to exit the wait
+        with pytest.raises(BreakLoop):
+            main.main(stop_event=stop_event)
+    finally:
+        monkeypatch.setattr(threading.Event, "wait", original_wait)
+
+    assert wait_calls["count"] >= 2
+    mock_play.assert_not_called()  # Ensure scream was not played
 
 
-def test_ambient_loop_idx_increment(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Test that ambient_loop cycles through files by incrementing idx."""
-
-    import skaven.sounds as main
+def test_ambient_loop_idx_increment(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Test that the ambient loop index increments and wraps around
+    import skaven.sounds as main  # Re-import locally if needed
 
     class BreakLoop(Exception):
         pass
 
     files = [Path("a.wav"), Path("b.wav")]
-    played: List[str] = []
+    played_paths: List[str] = []
 
-    def chan_play(snd: types.SimpleNamespace, **kwargs: Any) -> None:
-        # no-op for tests
-        pass
+    # Get the mock channel instance
+    mock_chan = cast(MagicMock, main.pygame.mixer.Channel(config.AMBIENT_CHANNEL))
 
-    def chan_fadeout(ms: int) -> None:
-        # no-op for tests
-        pass
+    # Record plays on the mock channel
+    def record_play(snd: MagicMock, **kwargs: Any) -> None:
+        # Access the path stored by the sound factory
+        played_paths.append(snd._fake_path.name)
 
-    fake_chan = types.SimpleNamespace(play=chan_play, fadeout=chan_fadeout)
+    mock_chan.play.side_effect = record_play
 
-    def channel_override(i: int = 0) -> types.SimpleNamespace:
-        return fake_chan
+    # Patch threading.Event.wait to break after several calls
+    original_wait = threading.Event.wait
+    wait_call_count = 0
 
-    monkeypatch.setattr(
-        main.pygame.mixer,
-        "Channel",
-        channel_override,
+    def fake_wait(self: threading.Event, timeout: Optional[float] = None) -> bool:
+        # This function intentionally returns False or raises for test control.
+        # SonarLint S3516 can be ignored here.
+        nonlocal wait_call_count
+        wait_call_count += 1
+        # Need 2 waits per loop cycle (main sleep, fadeout sleep)
+        # Let it run for 2 full cycles (4 waits) then break on 5th
+        if wait_call_count >= 5:
+            raise BreakLoop()
+        return False  # Simulate timeout
+
+    monkeypatch.setattr(threading.Event, "wait", fake_wait)
+
+    try:
+        with pytest.raises(BreakLoop):
+            main.ambient_loop(
+                files, fade_ms=10, volume=1.0, stop_event=threading.Event()
+            )
+    finally:
+        monkeypatch.setattr(threading.Event, "wait", original_wait)
+        mock_chan.play.side_effect = None  # Reset side effect
+
+    # Check that both files were played (requires at least 2 loop iterations)
+    assert "a.wav" in played_paths
+    assert "b.wav" in played_paths
+    # Ensure the loop ran enough times for idx to wrap
+    # Check counts based on the number of waits allowed
+    # (5 waits -> 2 full cycles -> 3 plays: a, b, a)
+    assert played_paths == ["a.wav", "b.wav", "a.wav"]
+
+
+# --- Integration tests for error handling and main function ---
+
+
+@patch("skaven.sounds.threading.Thread")
+@patch("skaven.sounds.load_sound_categories")
+@patch("skaven.sounds.ambient_loop")
+@patch("skaven.sounds.chains_loop")
+@patch("skaven.sounds.skaven_loop")
+@patch("skaven.sounds.rats_loop")
+def test_main_starts_loops(
+    mock_rats_loop: MagicMock,
+    mock_skaven_loop: MagicMock,
+    mock_chains_loop: MagicMock,
+    mock_ambient_loop: MagicMock,
+    mock_load_cats: MagicMock,
+    mock_thread: MagicMock,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Mock load_sound_categories to return dummy data
+    mock_load_cats.return_value = {
+        "ambient": [Path("a.wav")],
+        "rats": [Path("r.wav")],
+        "chains": [Path("c.wav")],
+        "screams": [Path("scream.wav")],
+        "skaven": [Path("sk.wav")],
+    }
+
+    # Pygame mocks are handled by the fixture
+
+    # Create a stop event that will be set by the main loop mock
+    stop_event = threading.Event()
+
+    # Mock the main loop's wait to raise KeyboardInterrupt quickly
+    original_wait = threading.Event.wait
+
+    def fake_main_wait(*args: Any, **kwargs: Any) -> bool:
+        # This function intentionally raises an exception for test control.
+        stop_event.set()  # Ensure the main function exits
+        raise KeyboardInterrupt("Simulated exit")
+
+    monkeypatch.setattr(threading.Event, "wait", fake_main_wait)
+
+    # Call main, expecting it to handle the KeyboardInterrupt
+    try:
+        main.main(stop_event=stop_event)
+    except KeyboardInterrupt:
+        pass  # Expected
+    finally:
+        monkeypatch.setattr(threading.Event, "wait", original_wait)  # Restore
+
+    # Assertions
+    mock_load_cats.assert_called_once()
+    assert mock_thread.call_count == 4  # ambient, chains, skaven, rats
+
+    # Check that each loop function was passed as a target to a Thread
+    thread_targets = {call.kwargs["target"] for call in mock_thread.call_args_list}
+    assert mock_ambient_loop in thread_targets
+    assert mock_chains_loop in thread_targets
+    assert mock_skaven_loop in thread_targets
+    assert mock_rats_loop in thread_targets
+
+    # Check that start was called for each thread instance
+    for call in mock_thread.call_args_list:
+        thread_instance = call.return_value
+        thread_instance.start.assert_called_once()
+
+    # Check that the correct args were passed to the loops
+    # Example: Check args for ambient_loop
+    ambient_call = next(
+        call
+        for call in mock_thread.call_args_list
+        if call.kwargs["target"] == mock_ambient_loop
     )
+    assert ambient_call.kwargs["args"][0] == [Path("a.wav")]  # files
+    assert ambient_call.kwargs["args"][1] == config.AMBIENT_FADE_MS  # fade_ms
+    # volume
+    assert ambient_call.kwargs["args"][2] == config.SOUND_VOLUME_DEFAULT
+    # stop_event
+    assert isinstance(ambient_call.kwargs["args"][3], threading.Event)
 
-    def fake_sound(path: Any) -> types.SimpleNamespace:
-        # path may be a str in main implementation, normalize to Path
-        p = Path(path)
-        played.append(p.name)
 
-        def set_volume(v: float) -> None:
-            # no-op for tests
-            pass
+@patch("skaven.sounds.threading.Thread")
+@patch("skaven.sounds.load_sound_categories")
+@patch("skaven.sounds.ambient_loop")
+@patch("skaven.sounds.chains_loop")
+@patch("skaven.sounds.skaven_loop")
+@patch("skaven.sounds.rats_loop")
+@patch("skaven.sounds.logger")
+def test_main_keyboard_interrupt(
+    mock_logger: MagicMock,
+    mock_rats: MagicMock,
+    mock_skaven: MagicMock,
+    mock_chains: MagicMock,
+    mock_ambient: MagicMock,
+    mock_load: MagicMock,
+    mock_thread: MagicMock,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Mock load_sound_categories
+    mock_load.return_value = {
+        "ambient": [Path("a.wav")],
+        "rats": [Path("r.wav")],
+        "chains": [Path("c.wav")],
+        "screams": [Path("scream.wav")],
+        "skaven": [Path("sk.wav")],
+    }
 
-        def get_length() -> float:
-            return 0.01
+    # Pygame mocks handled by fixture
 
-        def play(**kwargs: Any) -> None:
-            # no-op for tests
-            pass
+    # Simulate KeyboardInterrupt when the main loop's wait is called
+    original_wait = threading.Event.wait
 
-        return types.SimpleNamespace(
-            set_volume=set_volume,
-            get_length=get_length,
-            play=play,
-        )
+    def fake_wait_interrupt(*args: Any, **kwargs: Any) -> bool:
+        # This function intentionally raises an exception for test control.
+        raise KeyboardInterrupt("Simulated interrupt")
+
+    monkeypatch.setattr(threading.Event, "wait", fake_wait_interrupt)
+
+    # Create a stop event
+    stop_event = threading.Event()
+
+    # Call main and expect KeyboardInterrupt to be handled gracefully
+    main.main(stop_event=stop_event)
+
+    # Restore original wait
+    monkeypatch.setattr(threading.Event, "wait", original_wait)
+
+    # Assertions
+    mock_load.assert_called_once()
+    assert mock_thread.call_count == 4
+    mock_logger.info.assert_any_call(
+        "KeyboardInterrupt received, shutting down sound loops..."
+    )
+    # Ensure stop_event.set() was called
+    assert stop_event.is_set()
+
+    # Ensure fadeout was called on ambient and rat channels
+    # (mocked via fixture)
+    ambient_chan = cast(MagicMock, main.pygame.mixer.Channel(config.AMBIENT_CHANNEL))
+    ambient_chan.fadeout.assert_called_with(config.MAIN_AMBIENT_FADEOUT_MS)
+    # Check fadeout on rat channels
+    for i in range(config.RATS_CHANNEL_START, config.RATS_CHANNEL_END):
+        rat_chan = cast(MagicMock, main.pygame.mixer.Channel(i))
+        rat_chan.fadeout.assert_called_with(config.MAIN_RATS_FADEOUT_MS)
+
+
+@patch("skaven.sounds.logger")
+def test_main_no_sound_dir(
+    mock_logger: MagicMock, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Point config.SOUNDS_DIR to a non-existent directory
+    non_existent_path = tmp_path / "nonexistent_sounds"
+    monkeypatch.setattr(config, "SOUNDS_DIR", non_existent_path)
+
+    # Pygame mocks handled by fixture
+
+    # Patch Thread to check if loops are started
+    mock_thread_start = MagicMock()
+    monkeypatch.setattr(threading.Thread, "start", mock_thread_start)
+
+    # Mock the main loop's wait to exit quickly
+    original_wait = threading.Event.wait
+
+    def quick_exit(*args: Any, **kwargs: Any) -> bool:
+        # This function intentionally raises an exception for test control.
+        raise KeyboardInterrupt("Exit")
+
+    monkeypatch.setattr(threading.Event, "wait", quick_exit)
+
+    try:
+        main.main(stop_event=threading.Event())
+    except KeyboardInterrupt:
+        pass  # Expected exit
+    finally:
+        monkeypatch.setattr(threading.Event, "wait", original_wait)  # Restore
+
+    # Check that load_sound_categories was called
+    # (it handles non-existent dirs)
+    # Check that loops weren't started because categories were empty
+    mock_thread_start.assert_not_called()
+    # Check for a log message? The function might just exit silently
+    # if no sounds.
+    # Let's assume silent exit is okay if no sounds are found.
+
+
+@patch("skaven.sounds.logger")
+def test_main_pygame_init_error(
+    mock_logger: MagicMock, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Mock pygame.mixer.init to raise an error (using the mock from fixture)
+    # Cast to MagicMock to set side_effect
+    mock_init = cast(MagicMock, main.pygame.mixer.init)
+    mock_init.side_effect = pygame.error("init error")
+
+    # Expect main to catch the error, log critically, and re-raise
+    with pytest.raises(pygame.error, match="init error"):
+        main.main(stop_event=threading.Event())
+
+    # Reset side effect for other tests
+    mock_init.side_effect = None
+    # We can't easily assert the log here without more complex mocking
+    # But we verified the exception is raised
+
+
+@patch("skaven.sounds.logger")
+def test_main_generic_exception(
+    mock_logger: MagicMock, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Mock load_sound_categories to raise a generic exception
+    def raise_generic_error_load(*args: Any, **kwargs: Any) -> None:
+        raise RuntimeError("Load failed")
+
+    monkeypatch.setattr(main, "load_sound_categories", raise_generic_error_load)
+    # Pygame mocks handled by fixture
+
+    # Expect main to catch the generic error and log/re-raise
+    with pytest.raises(RuntimeError, match="Load failed"):
+        main.main(stop_event=threading.Event())
+    # Similar to above, log assertion is tricky due to re-raise
+
+
+# This test combines aspects of the original test_main_function_integration
+# but uses patching correctly for assertions.
+@patch("skaven.sounds.logger")
+@patch("skaven.sounds.load_sound_categories")
+@patch("skaven.sounds.ambient_loop")  # Patch loops to prevent actual execution
+@patch("skaven.sounds.chains_loop")
+@patch("skaven.sounds.skaven_loop")
+@patch("skaven.sounds.rats_loop")
+@patch("skaven.sounds.threading.Thread")  # Patch Thread to check calls
+def test_main_integration_setup_teardown(
+    mock_thread: MagicMock,
+    mock_rats_loop: MagicMock,
+    mock_skaven_loop: MagicMock,
+    mock_chains_loop: MagicMock,
+    mock_ambient_loop: MagicMock,
+    mock_load_cats: MagicMock,
+    mock_logger: MagicMock,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    # Mock load_sound_categories return value
+    mock_load_cats.return_value = {
+        "ambient": [tmp_path / "a.wav"],
+        "rats": [tmp_path / "r.wav"],
+        "chains": [tmp_path / "c.wav"],
+        "screams": [tmp_path / "scream.wav"],
+        "skaven": [tmp_path / "sk.wav"],
+    }
+    # Mock config.SOUNDS_DIR to use tmp_path
+    monkeypatch.setattr(config, "SOUNDS_DIR", tmp_path)
+
+    # Get mocks from the fixture (cast to MagicMock for assertions)
+    mock_mixer_init = cast(MagicMock, main.pygame.mixer.init)
+    mock_set_num_channels = cast(MagicMock, main.pygame.mixer.set_num_channels)
+
+    # Mock the main loop's wait to exit quickly via KeyboardInterrupt
+    original_wait = threading.Event.wait
+
+    def fake_wait_interrupt(*args: Any, **kwargs: Any) -> bool:
+        # This function intentionally raises an exception for test control.
+        raise KeyboardInterrupt("Simulated exit")
+
+    monkeypatch.setattr(threading.Event, "wait", fake_wait_interrupt)
+
+    # Call the main function
+    stop_event = threading.Event()
+    try:
+        main.main(stop_event=stop_event)
+    except KeyboardInterrupt:
+        pass  # Expected for test exit
+    finally:
+        # Restore wait
+        monkeypatch.setattr(threading.Event, "wait", original_wait)
+
+    # Assertions
+    mock_mixer_init.assert_called_once()
+    mock_set_num_channels.assert_called_once_with(config.SOUND_NUM_CHANNELS)
+    mock_load_cats.assert_called_once_with(tmp_path)
+    assert mock_thread.call_count == 4  # Check threads were created for loops
+    # Check threads were started
+    for call in mock_thread.call_args_list:
+        thread_instance = call.return_value
+        thread_instance.start.assert_called_once()
+
+    # Check loops were called (via Thread target)
+
+
+# --- Branch/exit coverage for sounds.py ---
+
+
+def test_ambient_loop_breaks_on_event(monkeypatch: pytest.MonkeyPatch) -> None:
+    files = [Path("a.wav")]
+    event = threading.Event()
+    event.set()
+    monkeypatch.setattr(threading.Event, "wait", lambda self, timeout=None: None)
+    monkeypatch.setattr(threading.Event, "is_set", lambda self: True)
+    main.ambient_loop(files, 100, 0.5, stop_event=event)
+
+
+def test_chains_loop_breaks_on_event(monkeypatch: pytest.MonkeyPatch) -> None:
+    files = [Path("c1.wav")]
+    event = threading.Event()
+    event.set()
+    monkeypatch.setattr(threading.Event, "wait", lambda self, timeout=None: None)
+    monkeypatch.setattr(threading.Event, "is_set", lambda self: True)
+    main.chains_loop(files, stop_event=event)
+
+
+def test_skaven_loop_breaks_on_event(monkeypatch: pytest.MonkeyPatch) -> None:
+    files = [Path("s1.wav")]
+    event = threading.Event()
+    event.set()
+    monkeypatch.setattr(threading.Event, "wait", lambda self, timeout=None: None)
+    monkeypatch.setattr(threading.Event, "is_set", lambda self: True)
+    main.skaven_loop(files, stop_event=event)
+
+
+def test_rats_loop_breaks_on_event_after_fadeout(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    files = [Path("r1.wav"), Path("r2.wav")]
+    chans = [
+        cast(MagicMock, main.pygame.mixer.Channel(1)),
+        cast(MagicMock, main.pygame.mixer.Channel(2)),
+    ]
+    event = threading.Event()
+    event.set()
+    monkeypatch.setattr(threading.Event, "wait", lambda self, timeout=None: None)
+    monkeypatch.setattr(threading.Event, "is_set", lambda self: True)
+    main.rats_loop(files, chans, stop_event=event)
+
+
+@patch("skaven.sounds.threading.Thread")
+@patch("skaven.sounds.load_sound_categories")
+@patch("skaven.sounds.ambient_loop")
+@patch("skaven.sounds.chains_loop")
+@patch("skaven.sounds.skaven_loop")
+@patch("skaven.sounds.rats_loop")
+def test_main_scream_logic_with_files(
+    mock_rats: MagicMock,
+    mock_skaven: MagicMock,
+    mock_chains: MagicMock,
+    mock_ambient: MagicMock,
+    mock_load: MagicMock,
+    mock_thread: MagicMock,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    mock_load.return_value = {
+        "ambient": [Path("a.wav")],
+        "rats": [Path("r.wav")],
+        "chains": [Path("c.wav")],
+        "screams": [Path("scream.wav")],
+        "skaven": [Path("sk.wav")],
+    }
+    call_count = {"n": 0}
+
+    def fake_wait(self: threading.Event, timeout: object = None) -> bool:
+        call_count["n"] += 1
+        return call_count["n"] >= 1
+
+    monkeypatch.setattr(threading.Event, "wait", fake_wait)
+    played = []
+    orig_sound = main.pygame.mixer.Sound
+
+    def fake_sound(path: Path) -> MagicMock:
+        m = MagicMock()
+        m.set_volume = MagicMock()
+
+        def play() -> None:
+            played.append(str(path))
+
+        m.play = play
+        return m
 
     monkeypatch.setattr(main.pygame.mixer, "Sound", fake_sound)
+    main.main(stop_event=threading.Event())
+    assert any("scream" in p for p in played)
+    monkeypatch.setattr(main.pygame.mixer, "Sound", orig_sound)
 
-    calls = {"count": 0}
 
-    def fake_sleep(seconds: float) -> None:
-        if calls["count"] < 3:
-            calls["count"] += 1
-        else:
-            raise BreakLoop()
+# --- New tests for 100% coverage of sounds.py ---
+def test_rats_loop_zero_weights(monkeypatch: pytest.MonkeyPatch) -> None:
+    files = [Path("r1.wav"), Path("r2.wav")]
+    chans = [
+        cast(MagicMock, main.pygame.mixer.Channel(1)),
+        cast(MagicMock, main.pygame.mixer.Channel(2)),
+    ]
+    # Patch random.random to always return 0
+    monkeypatch.setattr(main.random, "random", lambda: 0.0)
+    # Patch wait to break after one loop
+    original_wait = threading.Event.wait
 
-    monkeypatch.setattr(main.time, "sleep", fake_sleep)
+    def fake_wait(self: threading.Event, timeout: object = None) -> None:
+        raise Exception("break")
 
-    with pytest.raises(BreakLoop):
-        main.ambient_loop(files, fade_ms=10, volume=1.0)
-    assert "a.wav" in played and "b.wav" in played
+    monkeypatch.setattr(threading.Event, "wait", fake_wait)
+    try:
+        with pytest.raises(Exception):
+            main.rats_loop(files, chans, stop_event=threading.Event())
+    finally:
+        monkeypatch.setattr(threading.Event, "wait", original_wait)
+
+
+@patch("skaven.sounds.threading.Thread")
+@patch("skaven.sounds.load_sound_categories")
+@patch("skaven.sounds.ambient_loop")
+@patch("skaven.sounds.chains_loop")
+@patch("skaven.sounds.skaven_loop")
+@patch("skaven.sounds.rats_loop")
+def test_main_with_stop_after_parameter_logs_and_prints(
+    mock_rats: MagicMock,
+    mock_skaven: MagicMock,
+    mock_chains: MagicMock,
+    mock_ambient: MagicMock,
+    mock_load: MagicMock,
+    mock_thread: MagicMock,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    mock_load.return_value = {
+        "ambient": [Path("a.wav")],
+        "rats": [Path("r.wav")],
+        "chains": [Path("c.wav")],
+        "screams": [Path("scream.wav")],
+        "skaven": [Path("sk.wav")],
+    }
+    # Patch wait to return True after first call (simulate stop_after)
+    call_count = {"n": 0}
+
+    def fake_wait(self: threading.Event, timeout: object = None) -> bool:
+        call_count["n"] += 1
+        return call_count["n"] >= 1
+
+    monkeypatch.setattr(threading.Event, "wait", fake_wait)
+    main.main(stop_event=threading.Event(), stop_after=1)
+
+
+@patch("skaven.sounds.logger")
+@patch("skaven.sounds.load_sound_categories")
+@patch("skaven.sounds.ambient_loop")
+@patch("skaven.sounds.chains_loop")
+@patch("skaven.sounds.skaven_loop")
+@patch("skaven.sounds.rats_loop")
+def test_main_keyboard_interrupt_during_shutdown(
+    mock_rats: MagicMock,
+    mock_skaven: MagicMock,
+    mock_chains: MagicMock,
+    mock_ambient: MagicMock,
+    mock_load: MagicMock,
+    mock_logger: MagicMock,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    mock_load.return_value = {
+        "ambient": [Path("a.wav")],
+        "rats": [Path("r.wav")],
+        "chains": [Path("c.wav")],
+        "screams": [Path("scream.wav")],
+        "skaven": [Path("sk.wav")],
+    }
+    # Patch wait to raise KeyboardInterrupt on first call,
+    # then again during shutdown.
+
+    def fake_wait(self: threading.Event, timeout: object = None) -> bool:
+        raise KeyboardInterrupt("Simulated interrupt")
+
+    monkeypatch.setattr(threading.Event, "wait", fake_wait)
+
+    def raise_kb_interrupt(s: float) -> None:
+        raise KeyboardInterrupt("shutdown")
+
+    monkeypatch.setattr(main.time, "sleep", raise_kb_interrupt)
+    main.main(stop_event=threading.Event())

@@ -1,68 +1,145 @@
-import pytest
+import threading
+import sys
+import importlib
+import types
 from unittest.mock import patch, MagicMock
-from skaven.lighting import skaven_flicker_breathe_v2, skaven_flicker_breathe
 from typing import Generator
+from _pytest.monkeypatch import MonkeyPatch
 
 
-@pytest.fixture
-def mock_pixels() -> Generator[MagicMock, None, None]:
-    with patch("skaven.lighting.pixels") as mock_pixels:
-        yield mock_pixels
+def test_skaven_flicker_breathe_runs_and_stops() -> None:
+    stop_event = threading.Event()
 
-
-def test_skaven_flicker_breathe_v2_runs(mock_pixels: MagicMock) -> None:
-    # Test that the function runs without errors
-    # for a fixed number of iterations
-    skaven_flicker_breathe_v2(iterations=5)
-    assert mock_pixels.show.call_count > 0
-
-
-def test_skaven_flicker_breathe_v2_clears_pixels_on_exit(
-    mock_pixels: MagicMock,
-) -> None:
-    # Test that the pixels are cleared (set to (0, 0, 0))
-    # when the function exits
-    skaven_flicker_breathe_v2(iterations=1)
-    mock_pixels.fill.assert_called_with((0, 0, 0))
-    mock_pixels.show.assert_called()
-
-
-def test_skaven_flicker_breathe_v2_breathe_calculation() -> None:
-    # Test the internal breathe calculation logic
-    with patch("skaven.lighting.math.sin", return_value=0) as mock_sin:
-        with patch("skaven.lighting.time.time", side_effect=[0, 1]):
-            skaven_flicker_breathe_v2(iterations=1)
-            mock_sin.assert_called()
-
-
-def test_skaven_flicker_breathe(mock_pixels: MagicMock) -> None:
-    # Mock time and random to control the behavior
-    def time_generator() -> Generator[int, None, None]:
-        t = 0
+    def time_generator() -> Generator[float, None, None]:
+        t = 0.0
         while True:
             yield t
-            t += 1
+            t += 0.1
 
     time_gen = time_generator()
-    with patch(
-        "skaven.lighting.time.time",
-        side_effect=lambda: next(time_gen),
-    ):
-        with patch(
-            "skaven.lighting.random.random",
-            side_effect=(value for value in [0.1, 0.3, 0.5, 0.7] * 100),
-        ):
-            with patch(
-                "skaven.lighting.time.sleep",
-                side_effect=KeyboardInterrupt,
-            ):
-                # Run the function and stop it with a KeyboardInterrupt
-                try:
-                    skaven_flicker_breathe()
-                except KeyboardInterrupt:
-                    pass
+    call_count = 0
 
-    # Verify pixel updates and cleanup
-    assert mock_pixels.show.call_count > 0
-    mock_pixels.fill.assert_called_with((0, 0, 0))
-    mock_pixels.show.assert_called()
+    def mock_wait(timeout: float) -> bool:
+        nonlocal call_count
+        call_count += 1
+        if call_count > 5:
+            stop_event.set()
+            return True
+        next(time_gen)
+        return False
+
+    with patch("skaven.neopixel.NeoPixel", autospec=True) as mock_neopixel:
+        mock_pixels = MagicMock()
+        mock_pixels.__setitem__ = MagicMock()
+        mock_pixels.show = MagicMock()
+        mock_pixels.fill = MagicMock()
+        mock_neopixel.return_value = mock_pixels
+        sys.modules.pop("skaven.lighting", None)
+        import skaven.lighting as lighting_module
+
+        importlib.reload(lighting_module)
+        with patch("skaven.lighting.time.time", side_effect=lambda: next(time_gen)):
+            with patch("skaven.lighting.random.random", return_value=0.1):
+                with patch("skaven.lighting.random.randint", return_value=10):
+                    with patch.object(stop_event, "wait", side_effect=mock_wait):
+                        lighting_module.skaven_flicker_breathe(stop_event=stop_event)
+        # Use the mock_pixels object for assertions,
+        # not the function references
+        assert mock_pixels.show.call_count > 0
+        mock_pixels.fill.assert_called_with((0, 0, 0))
+        assert mock_pixels.show.call_count >= 1
+
+
+def test_lighting_pin_selection_branches(monkeypatch: MonkeyPatch) -> None:
+    """
+    Test pin selection logic:
+    - D18 == config.LED_PIN_BCM
+    - D18 != config.LED_PIN_BCM
+    - ImportError (D18 missing)
+    """
+    with patch("skaven.neopixel.NeoPixel", autospec=True) as mock_neopixel:
+        mock_pixels = MagicMock()
+        mock_pixels.__setitem__ = MagicMock()
+        mock_pixels.show = MagicMock()
+        mock_pixels.fill = MagicMock()
+        mock_neopixel.return_value = mock_pixels
+
+        # --- Case 1: D18 == config.LED_PIN_BCM ---
+        sys.modules.pop("skaven.lighting", None)
+        sys.modules.pop("skaven.board", None)
+        sys.modules.pop("skaven.config", None)
+        monkeypatch.setattr("skaven.board.D18", 42, raising=False)
+        monkeypatch.setattr("skaven.config.LED_PIN_BCM", 42, raising=False)
+        import skaven.lighting as lighting_module
+
+        importlib.reload(lighting_module)
+        assert lighting_module.led_pin_to_use == 42
+
+        # --- Case 2: D18 != config.LED_PIN_BCM ---
+        sys.modules.pop("skaven.lighting", None)
+        sys.modules.pop("skaven.board", None)
+        sys.modules.pop("skaven.config", None)
+        monkeypatch.setattr("skaven.board.D18", 1, raising=False)
+        monkeypatch.setattr("skaven.config.LED_PIN_BCM", 2, raising=False)
+        import skaven.lighting as lighting_module
+
+        importlib.reload(lighting_module)
+        assert lighting_module.led_pin_to_use == 2
+
+        # --- Case 3: D18 missing (fallback to config.LED_PIN_BCM) ---
+        sys.modules.pop("skaven.lighting", None)
+        sys.modules.pop("skaven.board", None)
+        sys.modules.pop("skaven.config", None)
+        # Replace skaven.board with a dummy module that raises ImportError
+        # on D18 import
+
+        class DummyBoard(types.ModuleType):
+
+            def __getattr__(self, name: str) -> object:
+                if name == "D18":
+                    raise ImportError("No module named 'D18'")
+                raise AttributeError(name)
+
+        sys.modules["skaven.board"] = DummyBoard("skaven.board")
+        monkeypatch.setattr("skaven.config.LED_PIN_BCM", 99, raising=False)
+        import skaven.lighting as lighting_module
+
+        importlib.reload(lighting_module)
+        assert lighting_module.led_pin_to_use == 99
+        # Restore real skaven.board for subsequent tests
+        sys.modules.pop("skaven.board", None)
+
+
+def test_skaven_flicker_breathe_finally_cleanup() -> None:
+    """
+    Test that the finally block in skaven_flicker_breathe is always
+    executed (cleanup).
+    """
+    stop_event = threading.Event()
+    with patch("skaven.neopixel.NeoPixel", autospec=True) as mock_neopixel:
+        mock_pixels = MagicMock()
+        mock_pixels.__setitem__ = MagicMock()
+        # Patch show to raise after first call
+        called = False
+
+        def show_side_effect() -> None:
+            nonlocal called
+            if not called:
+                called = True
+            else:
+                raise Exception("fail!")
+
+        mock_pixels.show.side_effect = show_side_effect
+        mock_pixels.fill = MagicMock()
+        mock_neopixel.return_value = mock_pixels
+        sys.modules.pop("skaven.lighting", None)
+        import skaven.lighting as lighting_module
+
+        importlib.reload(lighting_module)
+        with patch("skaven.lighting.time.time", return_value=0.0):
+            try:
+                lighting_module.skaven_flicker_breathe(stop_event=stop_event)
+            except Exception as e:
+                assert str(e) == "fail!"
+        mock_pixels.fill.assert_called_with((0, 0, 0))
+        assert mock_pixels.show.call_count >= 1

@@ -1,133 +1,413 @@
-import pytest
-import subprocess
-import time
+import sys
 import threading
-from unittest.mock import patch, MagicMock
-from skaven.video_loop import (
-    check_mpv_installed,
-    play_video_loop,
-    main,
-)
+import types
+import pytest
+import platform
+import skaven.video_loop as video_loop
 
 
-def test_check_mpv_installed_installed() -> None:
-    # force Linux so exit logic runs
-    with patch("platform.system", return_value="Linux"):
-        with patch("shutil.which", return_value="/usr/bin/mpv"):
-            try:
-                check_mpv_installed()
-            except SystemExit as e:
-                pytest.fail(
-                    "check_mpv_installed() exited unexpectedly "
-                    "when MPV is installed."
-                )
-                raise e
+@pytest.fixture(autouse=True)
+def patch_config(monkeypatch: pytest.MonkeyPatch) -> None:
+    class DummyConfig:
+        LOOP_WAIT_TIMEOUT = 0.01
+        PROCESS_WAIT_TIMEOUT = 0.01
+        VIDEO_FILE = "dummy.mp4"
+
+    monkeypatch.setattr(video_loop, "config", DummyConfig)
 
 
-def test_check_mpv_installed_not_installed() -> None:
-    # force Linux so exit logic runs
-    with patch("platform.system", return_value="Linux"):
-        with patch("shutil.which", return_value=None):
-            with patch("sys.exit") as mock_exit:
-                with patch("builtins.print") as mock_print:
-                    check_mpv_installed()
-                    mock_exit.assert_called_once_with(1)
-                    mock_print.assert_any_call("❌ Error: MPV not installed.")
-                    mock_print.assert_any_call(
-                        "👉 Install it with: sudo apt install mpv"
-                    )
+def test_check_mpv_installed_linux_installed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import shutil
+
+    monkeypatch.setattr(platform, "system", lambda: "Linux")
+    monkeypatch.setattr(shutil, "which", lambda x: "/usr/bin/mpv")
+    # Should not raise or exit
+    video_loop.check_mpv_installed()
 
 
-def test_play_video_loop_keyboard_interrupt() -> None:
-    """Test play_video_loop handles KeyboardInterrupt during run_video_loop."""
-    stop_event = threading.Event()
-    # Simulate KeyboardInterrupt occurring within run_video_loop
-    with patch("skaven.video_loop.run_video_loop", side_effect=KeyboardInterrupt):
-        with patch("skaven.video_loop.cleanup_process") as mock_cleanup:
-            # play_video_loop should catch the interrupt from run_video_loop
-            # and call cleanup_process with None because run_video_loop didn't
-            # return a process.
-            play_video_loop(stop_event)
-            mock_cleanup.assert_called_once_with(None)
+def test_check_mpv_installed_linux_not_installed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import shutil
+
+    monkeypatch.setattr(platform, "system", lambda: "Linux")
+    monkeypatch.setattr(shutil, "which", lambda x: None)
+    monkeypatch.setattr(
+        sys,
+        "exit",
+        lambda code=1: (_ for _ in ()).throw(SystemExit(code)),
+    )
+    with pytest.raises(SystemExit):
+        video_loop.check_mpv_installed()
 
 
-def test_play_video_loop_stops_on_event() -> None:
-    """Test that play_video_loop stops when the stop_event is set."""
-    stop_event = threading.Event()
-    mock_process = MagicMock(spec=subprocess.Popen)
-
-    # Mock run_video_loop to return a mock process
-    with patch(
-        "skaven.video_loop.run_video_loop", return_value=mock_process
-    ) as mock_run:
-        # Mock cleanup_process to check it's called correctly
-        with patch("skaven.video_loop.cleanup_process") as mock_cleanup:
-            # Run play_video_loop in a separate thread so we can set the event
-            thread = threading.Thread(target=play_video_loop, args=(stop_event,))
-            thread.start()
-
-            # Give the loop time to start and call run_video_loop
-            time.sleep(0.2)
-            mock_run.assert_called_once_with(stop_event)
-
-            # Set the event to signal shutdown
-            stop_event.set()
-            thread.join(timeout=1)  # Wait for the thread to finish
-
-            assert not thread.is_alive(), "Thread did not terminate after event was set"
-            # Check that cleanup was called with the process
-            # returned by run_video_loop
-            mock_cleanup.assert_called_once_with(mock_process)
+def test_check_mpv_installed_non_linux(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(platform, "system", lambda: "Darwin")
+    # Should not raise or exit
+    video_loop.check_mpv_installed()
 
 
-def test_play_video_loop_called_process_error() -> None:
-    """
-    Test play_video_loop when run_video_loop encounters an error
-    internally.
-    """
-    stop_event = threading.Event()
-    error = subprocess.CalledProcessError(1, "cmd")
-    # We mock run_video_loop itself. Let's say it tries to start, fails,
-    # handles it, and then returns None because it couldn't proceed.
-    with patch("skaven.video_loop.run_video_loop", side_effect=error) as mock_run:
-        with patch("skaven.video_loop.cleanup_process") as mock_cleanup:
-            # play_video_loop should catch the error from run_video_loop
-            # and call cleanup_process with None.
-            # We also expect the error to be logged or printed by the handler
-            # inside run_video_loop, but we aren't testing the internals of
-            # run_video_loop here directly.
-            # We might need a separate test for run_video_loop's error
-            # handling.
-            play_video_loop(stop_event)
+def test_handle_video_process_starts_new(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    dummy_proc = type("P", (), {"poll": lambda self: None})()
+    popen_called = {}
 
-            mock_run.assert_called_once_with(stop_event)
-            # Since run_video_loop raised an exception, play_video_loop
-            # calls cleanup with None
-            mock_cleanup.assert_called_once_with(None)
+    def dummy_popen(cmd: str) -> object:
+        popen_called["called"] = True
+        return dummy_proc
+
+    monkeypatch.setattr(
+        video_loop, "logger", types.SimpleNamespace(info=lambda *a, **k: None)
+    )
+    import subprocess
+
+    monkeypatch.setattr(subprocess, "Popen", dummy_popen)
+    monkeypatch.setattr(video_loop, "subprocess", subprocess)
+    proc = video_loop.handle_video_process(None)
+    assert popen_called["called"]
+    assert proc is dummy_proc
 
 
-def test_main_runs_play_loop_with_event() -> None:
-    """Test that main creates an event and passes it to play_video_loop."""
-    with patch("skaven.video_loop.check_mpv_installed") as mock_check:
-        with patch("skaven.video_loop.play_video_loop") as mock_loop:
-            # We need to mock threading.Event to check it's passed
-            mock_event = MagicMock(spec=threading.Event)
-            with patch(
-                "threading.Event", return_value=mock_event
-            ) as mock_event_constructor:
-                main()
+def test_handle_video_process_file_not_found(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def raise_fnf(cmd: str) -> None:
+        raise FileNotFoundError()
 
-    mock_check.assert_called_once()
-    mock_event_constructor.assert_called_once()  # Check event was created
-    mock_loop.assert_called_once_with(mock_event)  # Check event was passed
+    import subprocess
+
+    monkeypatch.setattr(subprocess, "Popen", raise_fnf)
+    monkeypatch.setattr(video_loop, "subprocess", subprocess)
+    proc = video_loop.handle_video_process(None)
+    assert proc is None
 
 
-def test_check_mpv_installed_skips_on_non_linux() -> None:
-    # On non-Linux platforms, no exit or print should occur
-    with patch("platform.system", return_value="Darwin"):
-        with patch("shutil.which", return_value=None):
-            with patch("sys.exit") as mock_exit:
-                with patch("builtins.print") as mock_print:
-                    check_mpv_installed()
-                    mock_exit.assert_not_called()
-                    mock_print.assert_not_called()
+def test_handle_video_process_called_process_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    called: dict[str, bool] = {}
+
+    def dummy_handle_process_error(process: object, e: Exception) -> None:
+        called["called"] = True
+
+    monkeypatch.setattr(
+        video_loop,
+        "logger",
+        types.SimpleNamespace(info=lambda *a: None, error=lambda *a: None),
+    )
+    monkeypatch.setattr(video_loop, "handle_process_error", dummy_handle_process_error)
+
+    import subprocess
+
+    def raise_cpe(cmd: str) -> None:
+        raise subprocess.CalledProcessError(1, cmd)
+
+    monkeypatch.setattr(subprocess, "Popen", raise_cpe)
+    monkeypatch.setattr(video_loop, "subprocess", subprocess)
+    video_loop.handle_video_process(None)
+    assert called["called"]
+
+
+def test_handle_video_process_keyboard_interrupt(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    called: dict[str, bool] = {}
+    monkeypatch.setattr(
+        video_loop,
+        "logger",
+        types.SimpleNamespace(
+            info=lambda *a, **k: None,
+            error=lambda *a, **k: None,
+        ),
+    )
+    monkeypatch.setattr(
+        video_loop,
+        "handle_keyboard_interrupt",
+        lambda: called.setdefault("called", True),
+    )
+
+    def raise_ki(cmd: str) -> None:
+        raise KeyboardInterrupt()
+
+    # Access subprocess via video_loop attribute, or import if not present
+    if hasattr(video_loop, "subprocess"):
+        monkeypatch.setattr(video_loop.subprocess, "Popen", raise_ki)
+    else:
+        import subprocess
+
+        monkeypatch.setattr(subprocess, "Popen", raise_ki)
+        monkeypatch.setattr(video_loop, "subprocess", subprocess)
+    proc = video_loop.handle_video_process(None)
+    assert called["called"]
+    assert proc is None
+
+
+def test_handle_video_process_unexpected(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    called: dict[str, bool] = {}
+    monkeypatch.setattr(
+        video_loop,
+        "logger",
+        types.SimpleNamespace(info=lambda *a, **k: None, error=lambda *a, **k: None),
+    )
+
+    monkeypatch.setattr(
+        video_loop,
+        "handle_unexpected_error",
+        lambda p, e: called.setdefault("called", True),
+    )
+
+    def raise_exc(cmd: str) -> None:
+        raise RuntimeError("fail")
+
+    import subprocess
+
+    monkeypatch.setattr(subprocess, "Popen", raise_exc)
+    monkeypatch.setattr(video_loop, "subprocess", subprocess)
+    video_loop.handle_video_process(None)
+    assert called["called"]
+
+
+def test_handle_process_error(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+
+    import subprocess
+
+    # Create a real Popen object using a harmless command
+    proc = subprocess.Popen(
+        [sys.executable, "-c", "import time; time.sleep(0.1)"],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    monkeypatch.setattr(
+        video_loop,
+        "logger",
+        types.SimpleNamespace(error=lambda *a, **k: None),
+    )
+    import time
+
+    monkeypatch.setattr(time, "sleep", lambda t: None)
+    try:
+        video_loop.handle_process_error(proc, Exception("fail"))
+        out = capsys.readouterr().out
+        assert "🔴 Error playing video" in out
+    finally:
+        proc.terminate()
+        proc.wait()
+
+
+def test_handle_keyboard_interrupt(
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        video_loop, "logger", types.SimpleNamespace(info=lambda *a, **k: None)
+    )
+    video_loop.handle_keyboard_interrupt()
+    out = capsys.readouterr().out
+    assert "👋 Exiting" in out
+
+
+def test_handle_unexpected_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    import subprocess
+
+    proc = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(0.1)"])
+    monkeypatch.setattr(
+        video_loop, "logger", types.SimpleNamespace(error=lambda *a, **k: None)
+    )
+    import time
+
+    monkeypatch.setattr(time, "sleep", lambda t: None)
+    try:
+        video_loop.handle_unexpected_error(proc, Exception("fail"))
+    finally:
+        proc.terminate()
+        proc.wait()
+
+
+def test_cleanup_process_terminates(monkeypatch: pytest.MonkeyPatch) -> None:
+    import subprocess
+    from unittest.mock import Mock
+
+    terminated: dict[str, bool] = {}
+
+    dummy_proc = Mock(spec=subprocess.Popen)
+    dummy_proc.poll.return_value = None
+    dummy_proc.terminate.side_effect = lambda: terminated.setdefault("terminated", True)
+    dummy_proc.wait.side_effect = lambda timeout=None: terminated.setdefault(
+        "waited", True
+    )
+
+    monkeypatch.setattr(
+        video_loop,
+        "logger",
+        types.SimpleNamespace(info=lambda *a, **k: None, warning=lambda *a, **k: None),
+    )
+    video_loop.cleanup_process(dummy_proc)
+    assert terminated.get("terminated")
+
+
+def test_cleanup_process_kills_on_timeout(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import subprocess
+    from unittest.mock import Mock
+
+    killed: dict[str, bool] = {}
+
+    dummy_proc = Mock(spec=subprocess.Popen)
+    dummy_proc.poll.return_value = None
+    dummy_proc.terminate.return_value = None
+    dummy_proc.wait.side_effect = subprocess.TimeoutExpired(cmd="mpv", timeout=1)
+    dummy_proc.kill.side_effect = lambda: killed.setdefault("killed", True)
+
+    monkeypatch.setattr(
+        video_loop,
+        "logger",
+        types.SimpleNamespace(info=lambda *a, **k: None, warning=lambda *a, **k: None),
+    )
+    video_loop.cleanup_process(dummy_proc)
+    assert killed.get("killed")
+
+    # Use Mock instead of DummyProc to match Popen signature and typing
+    dummy_proc2 = Mock(spec=subprocess.Popen)
+    dummy_proc2.poll.return_value = None
+
+    def terminate() -> None:
+        pass
+
+    def wait(timeout: float | None = None) -> None:
+        raise subprocess.TimeoutExpired(cmd="mpv", timeout=1)
+
+    def kill() -> None:
+        killed.setdefault("killed", True)
+
+    dummy_proc2.terminate.side_effect = terminate
+    dummy_proc2.wait.side_effect = wait
+    dummy_proc2.kill.side_effect = kill
+
+    monkeypatch.setattr(
+        video_loop,
+        "logger",
+        types.SimpleNamespace(info=lambda *a, **k: None, warning=lambda *a, **k: None),
+    )
+    video_loop.cleanup_process(dummy_proc2)
+    assert killed.get("killed")
+
+
+def test_cleanup_process_none(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Should do nothing
+    video_loop.cleanup_process(None)
+
+
+def test_run_video_loop_breaks_on_none(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    event = threading.Event()
+    monkeypatch.setattr(video_loop, "handle_video_process", lambda proc: None)
+    result = video_loop.run_video_loop(event)
+    assert result is None
+
+
+def test_run_video_loop_runs_once(monkeypatch: pytest.MonkeyPatch) -> None:
+    event = threading.Event()
+    called: dict[str, bool] = {}
+
+    from unittest.mock import Mock
+    import subprocess
+
+    dummy_proc = Mock(spec=subprocess.Popen)
+
+    def handle_video_process(proc: object) -> object:
+        if not called:
+            called["called"] = True
+            return dummy_proc
+        return None
+
+    monkeypatch.setattr(video_loop, "handle_video_process", handle_video_process)
+    result = video_loop.run_video_loop(event)
+    assert result is dummy_proc
+
+
+def test_play_video_loop_calls_cleanup(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    called: dict[str, bool] = {}
+    monkeypatch.setattr(video_loop, "run_video_loop", lambda event: "proc")
+    monkeypatch.setattr(
+        video_loop,
+        "cleanup_process",
+        lambda proc: called.setdefault("cleanup", True),
+    )
+    video_loop.play_video_loop()
+    assert called.get("cleanup")
+
+
+def test_main_calls_all(monkeypatch: pytest.MonkeyPatch) -> None:
+    called: dict[str, bool] = {}
+    monkeypatch.setattr(
+        video_loop,
+        "check_mpv_installed",
+        lambda: called.setdefault("check", True),
+    )
+    monkeypatch.setattr(
+        video_loop,
+        "play_video_loop",
+        lambda event: called.setdefault("play", True),
+    )
+    video_loop.main()
+    assert called.get("check")
+    assert called.get("play")
+
+
+def test_run_video_loop_event_set() -> None:
+    event = threading.Event()
+    event.set()  # Event is set before entering loop
+    result = video_loop.run_video_loop(event)
+    assert result is None
+
+
+def test_handle_video_process_returns_existing() -> None:
+    import subprocess
+    from unittest.mock import Mock
+
+    proc = Mock(spec=subprocess.Popen)
+    proc.poll.return_value = None
+    # Should just return the same process
+    assert video_loop.handle_video_process(proc) is proc
+
+
+def test_cleanup_process_none_and_poll(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import subprocess
+    from unittest.mock import Mock
+
+    # Should do nothing if process is None
+    video_loop.cleanup_process(None)
+    # Should do nothing if poll() is not None
+    dummy_proc = Mock(spec=subprocess.Popen)
+    dummy_proc.poll.return_value = 1
+    video_loop.cleanup_process(dummy_proc)
+
+
+def test_cleanup_process_none_and_poll_2(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Should do nothing if process is None
+    video_loop.cleanup_process(None)
+
+    # Should do nothing if poll() is not None
+    import subprocess
+    from unittest.mock import Mock
+
+    dummy_proc = Mock(spec=subprocess.Popen)
+    dummy_proc.poll.return_value = 1
+    video_loop.cleanup_process(dummy_proc)

@@ -4,113 +4,118 @@ import logging
 import random
 from typing import Optional
 import math
-from skaven.board import D18
-from skaven.neopixel import NeoPixel, GRB
+
+from . import config  # Import config moved to top
+
+try:
+    from skaven.board import D18
+
+    _has_d18 = True
+except ImportError:
+    _has_d18 = False
+from skaven.neopixel import NeoPixel  # Removed unused GRB import
 
 # Module logger
 logger = logging.getLogger(__name__)
 
+
 # --- Setup ---
-LED_COUNT = 30  # Number of LEDs
-LED_PIN = D18  # GPIO18 (Pin 12)
-BRIGHTNESS = 0.4
-ORDER = GRB  # LED color order
+# LED_COUNT = 30  # Number of LEDs - Moved to config
+# LED_PIN = D18  # GPIO18 (Pin 12) - Moved to config
+# BRIGHTNESS = 0.4 - Moved to config
+# ORDER = GRB  # LED color order - Moved to config
+
+if _has_d18:
+    if D18 == config.LED_PIN_BCM:
+        led_pin_to_use = D18
+    else:
+        logger.warning(
+            "board.D18 does not match config.LED_PIN_BCM, using config value."
+        )
+        led_pin_to_use = config.LED_PIN_BCM
+else:
+    logger.warning("board.D18 not found, using config.LED_PIN_BCM.")
+    led_pin_to_use = config.LED_PIN_BCM
 
 pixels = NeoPixel(
-    LED_PIN,
-    LED_COUNT,
-    brightness=BRIGHTNESS,
+    led_pin_to_use,  # Use determined pin
+    config.LED_COUNT,
+    brightness=config.LED_BRIGHTNESS,
     auto_write=False,
-    pixel_order=ORDER,
+    pixel_order=config.LED_ORDER,  # Use config string directly
 )
 
 
 # --- Flicker + Breathing effect ---
-def skaven_flicker_breathe_v2(iterations: int = 10) -> None:
-    def calculate_breathe(elapsed: float) -> float:
-        breathe = (math.sin(elapsed * 0.5) + 1) / 2
-        return 0.2 + breathe * 0.8
-
-    def update_pixels(breathe: float) -> None:
-        for i in range(LED_COUNT):
-            if random.random() < 0.2:
-                r = int(random.randint(0, 30) * breathe)
-                g = int(random.randint(50, 255) * breathe)
-                b = int(random.randint(0, 20) * breathe)
-                pixels[i] = (r, g, b)
-            else:
-                r = 0
-                g = int(50 * breathe)
-                b = 0
-                pixels[i] = (r, g, b)
-        pixels.show()
-
-    t_start = time.time()
-    try:
-        count = 0
-        while iterations == 0 or count < iterations:
-            elapsed = time.time() - t_start
-            breathe = calculate_breathe(elapsed)
-            update_pixels(breathe)
-            time.sleep(0.05)
-            count += 1 if iterations != 0 else 0
-    finally:
-        pixels.fill((0, 0, 0))
-        pixels.show()
-
-
-if __name__ == "__main__":
-    try:
-        skaven_flicker_breathe_v2(iterations=0)
-    except KeyboardInterrupt:
-        logger.info("🛑 Lighting effect stopped by user.")
-# Local board pin constants and NeoPixel stubs
-
-
-# --- Setup ---
-LED_COUNT = 30  # Number of LEDs
-LED_PIN = D18  # GPIO18 (Pin 12)
-BRIGHTNESS = 0.4
-ORDER = GRB  # LED color order
-
-pixels = NeoPixel(
-    LED_PIN,
-    LED_COUNT,
-    brightness=BRIGHTNESS,
-    auto_write=False,
-    pixel_order=ORDER,
-)
-
-
-# --- Flicker + Breathing effect ---
-def skaven_flicker_breathe(stop_event: Optional[threading.Event] = None) -> None:
+def skaven_flicker_breathe(
+    stop_event: Optional[threading.Event] = None,
+) -> None:
+    """Run the skaven flicker/breathe LED effect until stop_event is set."""
     t_start = time.time()
     # use stop_event to allow graceful shutdown
     event = stop_event or threading.Event()
     try:
-        while not event.is_set():  # Run until signaled
+        while not event.wait(
+            timeout=config.LIGHTING_UPDATE_INTERVAL
+        ):  # Use config interval and wait
             # Calculate breathing brightness (sinusoidal)
             elapsed = time.time() - t_start
 
             # Oscillates between 0 and 1
-            breathe = (math.sin(elapsed * 0.5) + 1) / 2
-            breathe = 0.2 + breathe * 0.8  # Keep minimum brightness at 20%
+            breathe_raw = (
+                math.sin(elapsed * config.LIGHTING_BREATHE_FREQUENCY) + 1
+            ) / 2
+            # Scale to min/max range
+            breathe = (
+                config.LIGHTING_BREATHE_MIN_BRIGHTNESS
+                + breathe_raw * config.LIGHTING_BREATHE_RANGE
+            )
 
-            for i in range(LED_COUNT):
-                if random.random() < 0.2:  # 20% chance to flicker randomly
-                    r = int(random.randint(0, 30) * breathe)
-                    g = int(random.randint(50, 255) * breathe)
-                    b = int(random.randint(0, 20) * breathe)
+            for i in range(config.LED_COUNT):
+                # Use config probability
+                if random.random() < config.LIGHTING_FLICKER_PROBABILITY:
+                    # Use config color ranges
+                    r = int(
+                        random.randint(
+                            config.LIGHTING_FLICKER_R_MIN,
+                            config.LIGHTING_FLICKER_R_MAX,
+                        )
+                        * breathe
+                    )
+                    g = int(
+                        random.randint(
+                            config.LIGHTING_FLICKER_G_MIN,
+                            config.LIGHTING_FLICKER_G_MAX,
+                        )
+                        * breathe
+                    )
+                    b = int(
+                        random.randint(
+                            config.LIGHTING_FLICKER_B_MIN,
+                            config.LIGHTING_FLICKER_B_MAX,
+                        )
+                        * breathe
+                    )
                     pixels[i] = (r, g, b)
                 else:
+                    # Use config base green
                     r = 0
-                    g = int(50 * breathe)
+                    g = int(config.LIGHTING_BASE_G * breathe)
                     b = 0
                     pixels[i] = (r, g, b)
 
             pixels.show()
-            time.sleep(0.05)  # Faster update for smooth breathing
+            # time.sleep(0.05) # Replaced by event.wait() timeout
     finally:
         # Cleanup on exit or exception
         pixels.fill((0, 0, 0))
         pixels.show()
+
+
+# Remove if __name__ == "__main__": block if this module is not meant
+# to be run directly
+# if __name__ == "__main__":
+#     try:
+#         skaven_flicker_breathe(iterations=0) # iterations not used anymore
+#     except KeyboardInterrupt:
+#         logger.info("🛑 Lighting effect stopped by user.")

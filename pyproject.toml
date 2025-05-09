@@ -31,6 +31,7 @@ mypy = "^1.15.0"
 ruff = "^0.11.6"
 black = "^25.1.0"
 pre-commit = "^4.2.0"
+pytest-cov = "^6.1.1"
 
 [tool.poetry.scripts]
 play-video = "skaven.video_loop:main"  # ✅ CLI entry point updated for new package

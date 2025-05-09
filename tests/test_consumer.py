@@ -1,5 +1,6 @@
-from skaven import sounds
+from skaven import config
 
 
 def test_volume() -> None:
-    assert isinstance(sounds.SOUND_VOLUME, float)
+    # Sound volume moved to config.py as SOUND_VOLUME_DEFAULT
+    assert isinstance(config.SOUND_VOLUME_DEFAULT, float)

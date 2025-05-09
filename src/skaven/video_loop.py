@@ -7,7 +7,7 @@ from typing import Optional
 import platform
 import logging
 
-VIDEO_PATH = "src/assets/video/skaven_loop.mp4"
+from . import config
 
 logger = logging.getLogger(__name__)
 
@@ -36,11 +36,13 @@ def run_video_loop(
 ) -> Optional[subprocess.Popen[bytes]]:
     """Run the video loop, handling process management."""
     process: Optional[subprocess.Popen[bytes]] = None
-    while not event.wait(timeout=0.1):  # Check event status periodically
+    last_proc: Optional[subprocess.Popen[bytes]] = None
+    while not event.wait(timeout=config.LOOP_WAIT_TIMEOUT):
         process = handle_video_process(process)
         if process is None:
             break
-    return process
+        last_proc = process
+    return last_proc
 
 
 def handle_video_process(
@@ -55,7 +57,7 @@ def handle_video_process(
                 "--fullscreen",
                 "--loop",
                 "--no-terminal",
-                VIDEO_PATH,
+                str(config.VIDEO_FILE),
             ]
             return subprocess.Popen(cmd)
     except FileNotFoundError:
@@ -82,7 +84,7 @@ def handle_process_error(
     if process:
         process.terminate()
         process.wait()
-    time.sleep(5)
+    time.sleep(config.PROCESS_WAIT_TIMEOUT)  # Use config value
 
 
 def handle_keyboard_interrupt() -> None:
@@ -99,7 +101,7 @@ def handle_unexpected_error(
     if process:
         process.terminate()
         process.wait()
-    time.sleep(5)
+    time.sleep(config.PROCESS_WAIT_TIMEOUT)  # Use config value
 
 
 def cleanup_process(process: Optional[subprocess.Popen[bytes]]) -> None:
@@ -108,7 +110,7 @@ def cleanup_process(process: Optional[subprocess.Popen[bytes]]) -> None:
         logger.info("Stopping video loop process...")
         process.terminate()
         try:
-            process.wait(timeout=5)
+            process.wait(timeout=config.PROCESS_WAIT_TIMEOUT)
         except subprocess.TimeoutExpired:
             logger.warning("mpv did not terminate gracefully, killing.")
             process.kill()

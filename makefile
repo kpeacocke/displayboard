@@ -1,5 +1,5 @@
 .PHONY: install run test coverage lint format check all coverage-html commit-clean \
-        precommit-install precommit-run apply-ruleset-main apply-ruleset-develop
+		precommit-install precommit-run apply-ruleset-main apply-ruleset-develop
 
 install:
 	poetry install
