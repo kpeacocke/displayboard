@@ -1,3 +1,16 @@
+"""
+Lighting effects for Skaven project.
+
+This module provides the Skaven flicker/breathe LED effect for NeoPixel strips.
+All public functions are type-annotated and documented for clarity and testability.
+"""
+
+__all__ = [
+    "skaven_flicker_breathe",
+    "pixels",
+    "logger",
+    "config",
+]
 import time
 import threading
 import logging
@@ -12,6 +25,7 @@ try:
 
     _has_d18 = True
 except ImportError:
+    D18 = 18  # fallback to default value, but mark as not available
     _has_d18 = False
 from skaven.neopixel import NeoPixel  # Removed unused GRB import
 
@@ -25,16 +39,17 @@ logger = logging.getLogger(__name__)
 # BRIGHTNESS = 0.4 - Moved to config
 # ORDER = GRB  # LED color order - Moved to config
 
-if _has_d18:
-    if D18 == config.LED_PIN_BCM:
-        led_pin_to_use = D18
-    else:
+
+# Robust pin selection: use D18 if available and matches config, else fallback
+if _has_d18 and D18 == config.LED_PIN_BCM:
+    led_pin_to_use = D18
+else:
+    if _has_d18:
         logger.warning(
             "board.D18 does not match config.LED_PIN_BCM, using config value."
         )
-        led_pin_to_use = config.LED_PIN_BCM
-else:
-    logger.warning("board.D18 not found, using config.LED_PIN_BCM.")
+    else:
+        logger.warning("board.D18 not found, using config.LED_PIN_BCM.")
     led_pin_to_use = config.LED_PIN_BCM
 
 pixels = NeoPixel(
@@ -47,34 +62,30 @@ pixels = NeoPixel(
 
 
 # --- Flicker + Breathing effect ---
-def skaven_flicker_breathe(
-    stop_event: Optional[threading.Event] = None,
-) -> None:
-    """Run the skaven flicker/breathe LED effect until stop_event is set."""
-    t_start = time.time()
-    # use stop_event to allow graceful shutdown
-    event = stop_event or threading.Event()
-    try:
-        while not event.wait(
-            timeout=config.LIGHTING_UPDATE_INTERVAL
-        ):  # Use config interval and wait
-            # Calculate breathing brightness (sinusoidal)
-            elapsed = time.time() - t_start
 
-            # Oscillates between 0 and 1
-            breathe_raw = (
+
+def skaven_flicker_breathe(stop_event: Optional[threading.Event] = None) -> None:
+    """
+    Run the Skaven flicker/breathe LED effect until stop_event is set.
+
+    Args:
+        stop_event: Optional threading.Event to allow graceful shutdown.
+    """
+    t_start: float = time.time()
+    event: threading.Event = stop_event or threading.Event()
+    try:
+        while not event.wait(timeout=config.LIGHTING_UPDATE_INTERVAL):
+            # Calculate breathing brightness (sinusoidal)
+            elapsed: float = time.time() - t_start
+            breathe_raw: float = (
                 math.sin(elapsed * config.LIGHTING_BREATHE_FREQUENCY) + 1
             ) / 2
-            # Scale to min/max range
-            breathe = (
+            breathe: float = (
                 config.LIGHTING_BREATHE_MIN_BRIGHTNESS
                 + breathe_raw * config.LIGHTING_BREATHE_RANGE
             )
-
             for i in range(config.LED_COUNT):
-                # Use config probability
                 if random.random() < config.LIGHTING_FLICKER_PROBABILITY:
-                    # Use config color ranges
                     r = int(
                         random.randint(
                             config.LIGHTING_FLICKER_R_MIN,
@@ -98,14 +109,11 @@ def skaven_flicker_breathe(
                     )
                     pixels[i] = (r, g, b)
                 else:
-                    # Use config base green
                     r = 0
                     g = int(config.LIGHTING_BASE_G * breathe)
                     b = 0
                     pixels[i] = (r, g, b)
-
             pixels.show()
-            # time.sleep(0.05) # Replaced by event.wait() timeout
     finally:
         # Cleanup on exit or exception
         pixels.fill((0, 0, 0))

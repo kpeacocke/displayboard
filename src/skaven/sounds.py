@@ -1,3 +1,25 @@
+"""
+Soundscape system for Skaven project.
+
+This module provides functions for loading, playing, and managing ambient, chain, skaven, rat,
+and scream sounds. All public functions are type-annotated and documented for clarity and
+testability.
+"""
+
+__all__ = [
+    "list_audio_files",
+    "load_sound_categories",
+    "ambient_loop",
+    "chains_loop",
+    "skaven_loop",
+    "rats_loop",
+    "main",
+    "pygame",
+    "random",
+    "time",
+    "threading",
+    "config",
+]
 from dotenv import load_dotenv
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence
@@ -23,7 +45,14 @@ AUDIO_EXTS = [".wav", ".ogg", ".mp3"]
 
 
 def list_audio_files(path: Path) -> List[Path]:
-    """Return a list of AUDIO_EXTS files in `path`, or empty if none."""
+    """
+    Return a list of audio files in the given directory, filtered by allowed extensions.
+
+    Args:
+        path: Directory to search for audio files.
+    Returns:
+        List of Path objects for each audio file found.
+    """
     files: List[Path] = []
     for ext in config.AUDIO_EXTENSIONS:  # Use config
         files.extend(path.glob(f"*{ext}"))
@@ -31,6 +60,14 @@ def list_audio_files(path: Path) -> List[Path]:
 
 
 def load_sound_categories(base_path: Path) -> Dict[str, List[Path]]:
+    """
+    Load sound files for each sound category from the given base directory.
+
+    Args:
+        base_path: Path to the root sounds directory.
+    Returns:
+        Dictionary mapping category names to lists of Path objects.
+    """
     return {
         "ambient": list_audio_files(base_path / "ambient"),
         "rats": list_audio_files(base_path / "rats"),
@@ -41,12 +78,20 @@ def load_sound_categories(base_path: Path) -> Dict[str, List[Path]]:
 
 
 def ambient_loop(
-    ambient_files: List[Path],
+    ambient_files: list[Path],
     fade_ms: int,
     volume: float,
     stop_event: Optional[threading.Event] = None,
 ) -> None:
-    """Continuously cross‑fade through your ambient tracks, if any."""
+    """
+    Continuously cross-fade through ambient tracks.
+
+    Args:
+        ambient_files: List of ambient sound files.
+        fade_ms: Fade duration in milliseconds.
+        volume: Playback volume (0.0 to 1.0).
+        stop_event: Optional event to signal loop exit.
+    """
     if not ambient_files:
         return
     event = stop_event or threading.Event()
@@ -71,10 +116,16 @@ def ambient_loop(
 
 
 def chains_loop(
-    chain_files: List[Path],
+    chain_files: list[Path],
     stop_event: Optional[threading.Event] = None,
 ) -> None:
-    """Every 15–120 s play exactly one chain sound at random ≤ 0.5 volume."""
+    """
+    Play a random chain sound at random volume every 15–120 seconds.
+
+    Args:
+        chain_files: List of chain sound files.
+        stop_event: Optional event to signal loop exit.
+    """
     if not chain_files:
         return
     event = stop_event or threading.Event()
@@ -91,10 +142,16 @@ def chains_loop(
 
 
 def skaven_loop(
-    skaven_files: List[Path],
+    skaven_files: list[Path],
     stop_event: Optional[threading.Event] = None,
 ) -> None:
-    """Every 20–40 s play exactly one skaven sound at random volume."""
+    """
+    Play a random skaven sound at random volume every 20–40 seconds.
+
+    Args:
+        skaven_files: List of skaven sound files.
+        stop_event: Optional event to signal loop exit.
+    """
     if not skaven_files:
         return
     event = stop_event or threading.Event()
@@ -111,14 +168,17 @@ def skaven_loop(
 
 
 def rats_loop(
-    rat_files: List[Path],
-    channels: Sequence[Any],  # channel-like objects supporting play/fadeout
+    rat_files: list[Path],
+    channels: Sequence["pygame.mixer.Channel"],
     stop_event: Optional[threading.Event] = None,
 ) -> None:
     """
-    Keep at least one rat sound playing, and every 2–6 s
-    pick a new random "horde" of up to len(channels) rats
-    at varying volumes.
+    Continuously play random rat sounds on available channels at varying volumes.
+
+    Args:
+        rat_files: List of rat sound files.
+        channels: Sequence of pygame.mixer.Channel objects supporting play/fadeout.
+        stop_event: Optional event to signal loop exit.
     """
     if not rat_files:
         return
@@ -156,6 +216,14 @@ def main(
     stop_event: Optional[threading.Event] = None,
     stop_after: Optional[int] = None,
 ) -> None:
+    """
+    Main entry point for the soundscape system. Initializes pygame, loads sounds, and starts all
+    loops.
+
+    Args:
+        stop_event: Optional event to signal shutdown.
+        stop_after: If set, stop after this many cycles (for testing).
+    """
     # Main function logic
     # Handle optional stop_after cycles
     if stop_after is not None:

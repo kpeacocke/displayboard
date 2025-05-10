@@ -1,6 +1,12 @@
 """
-Stub module for NeoPixel functionality
+Stub module for NeoPixel functionality for Skaven project.
+
+This module provides a stub NeoPixel class and color order constant for non-Pi environments.
+All public methods are type-annotated and documented for clarity and testability.
 """
+
+__all__ = ["NeoPixel", "GRB"]
+
 
 from typing import Any, Tuple
 

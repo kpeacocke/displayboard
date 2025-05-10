@@ -1,5 +1,14 @@
 """
-Stub module for board pin definitions
+Board pin definitions for Skaven project.
+
+This module provides symbolic names for GPIO pins used in the project.
 """
 
-D18: int = 18
+__all__ = ["D18"]
+"""
+Stub module for board pin definitions.
+
+This module provides symbolic names for GPIO pins used in the project.
+"""
+
+D18: int = 18  # GPIO18 (Pin 12)

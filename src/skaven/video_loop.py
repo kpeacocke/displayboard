@@ -1,3 +1,24 @@
+"""
+Video loop system for Skaven project.
+
+This module provides functions for checking MPV installation, playing video loops, and handling
+video process errors. All public functions are type-annotated and documented for clarity and
+testability.
+"""
+
+__all__ = [
+    "check_mpv_installed",
+    "play_video_loop",
+    "run_video_loop",
+    "handle_video_process",
+    "handle_process_error",
+    "handle_keyboard_interrupt",
+    "handle_unexpected_error",
+    "cleanup_process",
+    "main",
+    "logger",
+    "config",
+]
 import subprocess
 import shutil
 import sys

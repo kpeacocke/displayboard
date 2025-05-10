@@ -1,3 +1,19 @@
+"""
+Main entry point for Skaven soundscape, video, and lighting system.
+
+This module parses CLI arguments, configures logging, and starts the sound, video, and lighting
+subsystems. All public functions are type-annotated and documented for clarity and testability.
+"""
+
+__all__ = [
+    "parse_args",
+    "start_threads",
+    "main",
+    "configure_logging",
+    "handle_video_playback",
+    "handle_shutdown",
+    "_join_threads",
+]
 import argparse
 import threading
 import logging
@@ -10,6 +26,12 @@ __all__ = ["sounds", "video_loop", "lighting", "parse_args", "main"]
 
 
 def parse_args() -> argparse.Namespace:
+    """
+    Parse command-line arguments for the Skaven soundscape system.
+
+    Returns:
+        argparse.Namespace with parsed arguments.
+    """
     parser = argparse.ArgumentParser(
         prog="skaven",
         description="Skaven soundscape + video + lighting controller",
@@ -49,8 +71,15 @@ def start_threads(
 ) -> list[threading.Thread]:
     """
     Start threads for soundscape and lighting based on CLI arguments.
+
+    Args:
+        args: Parsed command-line arguments.
+        stop_event: Event to signal shutdown to all threads.
+
+    Returns:
+        List of started threading.Thread objects.
     """
-    threads = []
+    threads: list[threading.Thread] = []
     if not args.no_sounds:
         t = threading.Thread(
             target=sounds.main,
@@ -94,7 +123,15 @@ def main() -> None:
 
 
 def configure_logging(args: argparse.Namespace) -> logging.Logger:
-    """Configure logging based on CLI flags."""
+    """
+    Configure logging based on CLI flags.
+
+    Args:
+        args: Parsed command-line arguments.
+
+    Returns:
+        Configured logger instance.
+    """
     level = config.LOG_LEVEL_WARNING  # Use config default
     if args.debug:
         level = config.LOG_LEVEL_VERBOSE  # Use config debug level
@@ -112,7 +149,13 @@ def configure_logging(args: argparse.Namespace) -> logging.Logger:
 def handle_video_playback(
     args: argparse.Namespace, stop_event: threading.Event
 ) -> None:
-    """Handle video playback or wait for shutdown signal."""
+    """
+    Handle video playback or wait for shutdown signal.
+
+    Args:
+        args: Parsed command-line arguments.
+        stop_event: Event to signal shutdown.
+    """
     if not args.no_video:
         # Pass stop_event to video_loop.main
         video_loop.main(stop_event=stop_event)
@@ -131,7 +174,15 @@ def handle_shutdown(
     logger: logging.Logger,
     args: argparse.Namespace,
 ) -> None:
-    """Handle shutdown logic and join threads."""
+    """
+    Handle shutdown logic and join threads.
+
+    Args:
+        threads: List of running threads to join.
+        stop_event: Event to signal shutdown.
+        logger: Logger instance for logging shutdown progress.
+        args: Parsed command-line arguments.
+    """
     try:
         if not args.no_video:
             # Pass stop_event to video_loop.main
@@ -150,7 +201,13 @@ def handle_shutdown(
 
 
 def _join_threads(threads: list[threading.Thread], logger: logging.Logger) -> None:
-    """Helper function to join threads and handle exceptions."""
+    """
+    Helper function to join threads and handle exceptions.
+
+    Args:
+        threads: List of threads to join.
+        logger: Logger instance for logging join progress.
+    """
     logger.debug("Waiting for threads to join...")
     for t in threads:
         logger.debug(f"Joining thread: {t.name}")
