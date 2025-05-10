@@ -36,6 +36,7 @@ pytest-cov = "^6.1.1"
 
 [tool.poetry.scripts]
 play-video = "skaven.video_loop:main"  # ✅ CLI entry point updated for new package
+skaven = "skaven.main:main"  # Main CLI entry point
 
 [tool.coverage.run]
 branch = true

@@ -3,44 +3,62 @@
 An immersive, randomized soundscape system for Skaven-themed Warhammer Age of Sigmar display boards.
 
 🎵 Loops ambient sewer sounds
-
 🐁 Plays randomized rat noises, chain rattles, and occasional screams
-
 💡 Optional LED/servo/fog integration via Raspberry Pi GPIO
-
 🔬 Fully CI/CD enforced with linting, typing, testing, and coverage
-
 🧠 All commits & PRs must reference GitHub Issues (enforced)
 
-📦 Requirements
+---
 
-Python 3.9+
+## 📦 Requirements
 
-Poetry
+- Python 3.9+
+- Poetry (for development/build)
+- Pygame for audio
+- Optional: Raspberry Pi + GPIO hardware for effects
 
-Pygame for audio
+---
 
-Optional: Raspberry Pi + GPIO hardware for effects
+## 🛠️ Installation & Usage
 
-⚙️ Setup
+You can install and run the Skaven Soundscape as a proper Python package:
 
 ```bash
-git clone <https://github.com/kpeacocke/skaven-soundscape.git>
-cd skaven-soundscape
-
+# Install dependencies (dev)
 poetry install
-make run  # Start the soundscape
+
+# Or install as a package (pip, editable mode)
+pip install -e .
+
+# Run the main soundscape system (CLI entry point)
+skaven --help
+skaven           # Starts the soundscape (sound, video, lighting)
+play-video       # Play only the video loop
 ```
 
-🧪 Testing, Linting, Type Checking
+---
 
-Run them all:
+### 📝 Package Metadata
+
+This project is bundled as a modern Python package using [PEP 517/518] and Poetry. Entry points are declared in `pyproject.toml`:
+
+```toml
+[tool.poetry.scripts]
+skaven = "skaven.main:main"
+play-video = "skaven.video_loop:main"
+```
+
+---
+
+## 🧪 Testing, Linting, Type Checking
+
+Run all checks:
 
 ```bash
 make check
 ```
 
-Individually:
+Run individually:
 
 ```bash
 make lint      # ruff + black
@@ -52,7 +70,9 @@ make type      # mypy
 make package   # Build a distributable package
 ```
 
-🧼 Pre-commit Hook Setup
+---
+
+### 🧼 Pre-commit Hook Setup
 
 ```bash
 make precommit-install
@@ -60,70 +80,47 @@ make precommit-install
 
 Will auto-run:
 
-black
+- black
+- ruff
+- mypy
+- commit message format (fixes #123)
 
-ruff
+---
 
-mypy
-
-commit message format (fixes #123)
-
-🧾 Commit Message Guidelines
+### 🧾 Commit Message Guidelines
 
 All commits must reference a GitHub Issue:
 
-fixes #42 – sync bell servo with scream
-refs #88 – play scream when fog triggered
+- fixes #42 – sync bell servo with scream
+- refs #88 – play scream when fog triggered
 
-🔁 GitHub Workflows
+---
 
-Workflow
+### 🔁 GitHub Workflows
 
-Triggers
+| Workflow                | Triggers           | What It Does                                 |
+|-------------------------|--------------------|----------------------------------------------|
+| check.yml               | push/PR to main    | Lint, type check, test, coverage + PR comment|
+| release.yml             | push to main after CI | Auto-tags + releases with changelog      |
+| require-linked-issue.yml| all PRs            | Enforces sidebar-linked GitHub Issue         |
+| consumer-typecheck.yml  | push/PR to main    | Verifies type exposure for consumers         |
+| pre-commit              | local Git          | Blocks bad commits, auto-fixes code style    |
 
-What It Does
+---
 
-check.yml
+### 🚀 Releasing
 
-push/PR to main
+Push to main with all checks passing.
 
-Lint, type check, test, coverage + PR comment
+`release.yml` tags the next patch version (e.g. v0.1.2).
 
-release.yml
+Release notes are generated from commits + issue refs.
 
-push to main after CI
+You’ll see a new GitHub Release on the repo.
 
-Auto-tags + releases with changelog
+---
 
-require-linked-issue.yml
-
-all PRs
-
-Enforces sidebar-linked GitHub Issue
-
-consumer-typecheck.yml
-
-push/PR to main
-
-Verifies type exposure for consumers
-
-pre-commit
-
-local Git
-
-Blocks bad commits, auto-fixes code style
-
-🚀 Releasing
-
-Push to main with all checks passing
-
-release.yml tags the next patch version (e.g. v0.1.2)
-
-Release notes are generated from commits + issue refs
-
-You’ll see a new GitHub Release on the repo
-
-🧱 Folder Structure
+### 🧱 Folder Structure
 
 skaven_soundscape/
 │   main.py
@@ -137,7 +134,9 @@ coverage.txt
 coverage_summary.txt
 Makefile
 
-📚 Contributing
+---
+
+### 📚 Contributing
 
 See CONTRIBUTING.md for commit rules, branching, PR templates, and CI rules.
 
