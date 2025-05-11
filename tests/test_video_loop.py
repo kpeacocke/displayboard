@@ -16,39 +16,46 @@ def patch_config(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(video_loop, "config", DummyConfig)
 
 
+@pytest.mark.parametrize("platform_name", ["Linux", "Darwin", "Windows"])
 def test_check_mpv_installed_linux_installed(
-    monkeypatch: pytest.MonkeyPatch,
+    monkeypatch: pytest.MonkeyPatch, platform_name: str
 ) -> None:
     import shutil
 
-    monkeypatch.setattr(platform, "system", lambda: "Linux")
+    monkeypatch.setattr(platform, "system", lambda: platform_name)
     monkeypatch.setattr(shutil, "which", lambda x: "/usr/bin/mpv")
     # Should not raise or exit
     video_loop.check_mpv_installed()
 
 
+@pytest.mark.parametrize("platform_name", ["Linux", "Darwin", "Windows"])
 def test_check_mpv_installed_linux_not_installed(
-    monkeypatch: pytest.MonkeyPatch,
+    monkeypatch: pytest.MonkeyPatch, platform_name: str
 ) -> None:
     import shutil
 
-    monkeypatch.setattr(platform, "system", lambda: "Linux")
+    monkeypatch.setattr(platform, "system", lambda: platform_name)
     monkeypatch.setattr(shutil, "which", lambda x: None)
     monkeypatch.setattr(
         sys,
         "exit",
         lambda code=1: (_ for _ in ()).throw(SystemExit(code)),
     )
-    with pytest.raises(SystemExit):
+    if platform_name == "Linux":
+        with pytest.raises(SystemExit):
+            video_loop.check_mpv_installed()
+    else:
+        # Should not raise SystemExit for non-Linux platforms
         video_loop.check_mpv_installed()
 
 
+@pytest.mark.parametrize("platform_name", ["Linux", "Darwin", "Windows"])
 def test_check_mpv_installed_non_linux(
-    monkeypatch: pytest.MonkeyPatch,
+    monkeypatch: pytest.MonkeyPatch, platform_name: str
 ) -> None:
     import shutil
 
-    monkeypatch.setattr(platform, "system", lambda: "Darwin")
+    monkeypatch.setattr(platform, "system", lambda: platform_name)
     monkeypatch.setattr(shutil, "which", lambda x: "/usr/local/bin/mpv")
     # Should not raise or exit
     video_loop.check_mpv_installed()

@@ -1,3 +1,4 @@
+import pytest
 import sys
 import importlib
 import types
@@ -6,8 +7,15 @@ from typing import Generator
 from _pytest.monkeypatch import MonkeyPatch
 
 
+@pytest.fixture(params=[18, 21, 99])
+def hardware_pin(request: pytest.FixtureRequest, monkeypatch: MonkeyPatch) -> int:
+    # Patch the config or board to simulate different hardware
+    monkeypatch.setattr("skaven.config.LED_PIN_BCM", request.param, raising=False)
+    return int(request.param)
+
+
 def test_skaven_flicker_breathe_runs_and_stops(
-    mock_neopixel: MagicMock, dummy_event: MagicMock
+    mock_neopixel: MagicMock, dummy_event: MagicMock, hardware_pin: int
 ) -> None:
     stop_event = dummy_event
 
@@ -52,7 +60,10 @@ def test_skaven_flicker_breathe_runs_and_stops(
 
 
 def test_lighting_pin_selection_branches(
-    monkeypatch: MonkeyPatch, mock_led_button: MagicMock, mock_board_pins: MagicMock
+    monkeypatch: MonkeyPatch,
+    mock_led_button: MagicMock,
+    mock_board_pins: MagicMock,
+    hardware_pin: int,
 ) -> None:
     """
     Test pin selection logic:

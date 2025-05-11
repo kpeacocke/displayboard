@@ -1,6 +1,6 @@
+import pytest
 import importlib
 import sys
-import pytest
 import pygame
 import logging
 from unittest.mock import MagicMock
@@ -9,16 +9,19 @@ from typing import Optional
 import skaven.bell as bell_module
 
 
+# Parametrize pin factory for hardware scenarios
+@pytest.mark.parametrize("pin_factory", ["pigpio", "native", "dummy"])
 def test_move_bell_nested_except_minimal(
     mock_servo: type,
     monkeypatch: pytest.MonkeyPatch,
     fresh_bell_module: tuple[ModuleType, ModuleType, object],
     caplog: pytest.LogCaptureFixture,
+    pin_factory: str,
 ) -> None:
     """
     Minimal test: both move and mid fail in move_bell's except (lines 102-105).
     """
-    bell_module, _, _ = fresh_bell_module
+    bell_module, config_module, _ = fresh_bell_module
     caplog.set_level(logging.ERROR)
 
     from tests.conftest import DummyServoMinimal
@@ -27,6 +30,7 @@ def test_move_bell_nested_except_minimal(
     setattr(bell_module, "servo", dummy_servo)
     monkeypatch.setattr(bell_module.random, "randint", lambda a, b: 1)
     monkeypatch.setattr(bell_module.random, "uniform", lambda a, b: 0.5)
+    monkeypatch.setattr(config_module, "BELL_GPIO_PIN_FACTORY", pin_factory)
     bell_module.move_bell()
     assert "Error moving servo: move fail minimal" in caplog.text
     assert "Failed to return servo to mid position: mid fail minimal" in caplog.text
