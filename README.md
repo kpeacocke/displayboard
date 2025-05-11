@@ -1,5 +1,28 @@
 # 🐀 Skaven Soundscape
 
+---
+
+## ⚡ Quick Start
+
+1. **Clone the repo & install dependencies:**
+
+   ```zsh
+   git clone https://github.com/kpeacocke/skaven-soundscape.git
+   cd skaven-soundscape
+   poetry install
+   cp .env.example .env  # Edit as needed
+   ```
+
+2. **Run the soundscape:**
+
+   ```zsh
+   make run
+   # or
+   poetry run skaven
+   ```
+
+---
+
 An immersive, randomized soundscape system for Skaven-themed Warhammer Age of Sigmar display boards.
 
 🎵 Loops ambient sewer sounds
@@ -20,6 +43,33 @@ An immersive, randomized soundscape system for Skaven-themed Warhammer Age of Si
 ---
 
 ## 🛠️ Installation & Usage
+
+### Environment Variables
+
+Configuration is managed via environment variables. See `.env.example` for all options:
+
+```env
+SOUND_VOLUME=0.75
+USE_GPIO=true
+DEBUG_MODE=false
+```
+
+Copy `.env.example` to `.env` and adjust as needed for your setup.
+
+### Platform Notes
+
+- **Linux (Raspberry Pi recommended):**
+  - All features supported (audio, GPIO, video, lighting, fog, etc.)
+  - Install `python3-dev`, `libasound2-dev`, and other audio/GPIO dependencies as needed.
+  - For GPIO: `USE_GPIO=true` in your `.env` and ensure you have the correct permissions (often requires running as root or configuring groups).
+
+- **macOS:**
+  - Audio and video playback supported (no GPIO/fog/servo integration).
+  - Install Python 3.9+ (e.g., via Homebrew: `brew install python@3.9`)
+  - Some dependencies may require Xcode command line tools: `xcode-select --install`
+  - Set `USE_GPIO=false` in your `.env` (default)
+
+---
 
 You can install and run the Skaven Soundscape as a proper Python package:
 
@@ -138,7 +188,9 @@ Makefile
 
 ### 📚 Contributing
 
-See CONTRIBUTING.md for commit rules, branching, PR templates, and CI rules.
+See `CONTRIBUTING.md` for commit rules, branching, PR templates, and CI rules.
+See `.env.example` for environment variable setup.
+For platform-specific setup, see the Platform Notes above.
 
 All PRs must reference a GitHub Issue (closes #123) and be linked in the PR sidebar (this is enforced).
 
