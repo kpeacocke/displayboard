@@ -152,7 +152,7 @@ def test_import_bell_pygame_mixer_init_fails(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """
-    Covers lines 22-23: pygame.mixer.init fails at import time.
+    Tests pygame.mixer.init failing at import time.
     """
     caplog.set_level("ERROR")
     sys.modules.pop("skaven.bell", None)
@@ -170,7 +170,7 @@ def test_start_sound_raises(
     fresh_bell_module: tuple[ModuleType, ModuleType, object],
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Covers lines 49-50: Exception in start_sound (music.load/play)."""
+    """Tests exception in start_sound (music.load/play)."""
     bell_module, _, _ = fresh_bell_module
     caplog.set_level(logging.ERROR)
     monkeypatch.setattr(
@@ -187,7 +187,7 @@ def test_stop_sound_raises(
     fresh_bell_module: tuple[ModuleType, ModuleType, object],
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Covers lines 65-66: Exception in stop_sound (music.stop)."""
+    """Tests exception in stop_sound (music.stop)."""
     bell_module, _, music_mock = fresh_bell_module
     caplog.set_level(logging.ERROR)
     monkeypatch.setattr(music_mock, "get_busy", lambda: True)
@@ -205,7 +205,7 @@ def test_move_bell_servo_mid_raises_in_except(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """
-    Covers lines 102-105: servo.mid() raises in except block of move_bell.
+    Tests servo.mid() raising in except block of move_bell.
     """
     bell_module, _, _ = fresh_bell_module
     caplog.set_level(logging.ERROR)
@@ -231,7 +231,7 @@ def test_move_bell_nested_except_mid_also_fails(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """
-    Covers lines 102-105: both move and mid fail in move_bell's except.
+    Tests both move and mid failing in move_bell's except block.
     """
     bell_module, _, _ = fresh_bell_module
     caplog.set_level(logging.ERROR)
@@ -254,7 +254,7 @@ def test_main_servo_mid_raises_in_finally(
     caplog: pytest.LogCaptureFixture,
     dummy_event: object,
 ) -> None:
-    """Covers lines 155-156: servo.mid() raises in main's finally block."""
+    """Tests servo.mid() raising in main's finally block."""
     bell_module, _, _ = fresh_bell_module
 
     # Robust log capture: forcibly reset both skaven.bell and bell_module.__name__ loggers
@@ -288,7 +288,7 @@ def test_main_servo_close_raises_in_finally(
     caplog: pytest.LogCaptureFixture,
     dummy_event: object,
 ) -> None:
-    """Covers line 173: servo.close() raises in main's finally block."""
+    """Tests servo.close() raising an exception in main's cleanup."""
     bell_module, _, _ = fresh_bell_module
 
     # Robust log capture: forcibly reset both skaven.bell and bell_module.__name__ loggers
@@ -322,7 +322,7 @@ def test_main_pygame_quit_raises_in_finally(
     caplog: pytest.LogCaptureFixture,
     dummy_event: object,
 ) -> None:
-    """Covers line 191: pygame.mixer.quit() raises in main's finally block."""
+    """Tests pygame.mixer.quit() raising an exception in main's cleanup."""
     bell_module, _, _ = fresh_bell_module
     caplog.set_level(logging.ERROR)
     # No need to patch Servo class, mock_servo fixture already does this
@@ -348,7 +348,7 @@ def test_main_created_event_set(
     fresh_bell_module: tuple[ModuleType, ModuleType, object],
     dummy_event: object,
 ) -> None:
-    """Covers line 198: created_event.set() in main's finally block."""
+    """Tests created_event.set() is called in main's cleanup."""
     bell_module, _, _ = fresh_bell_module
     # No need to patch Servo class, mock_servo fixture already does this
     monkeypatch.setattr(
@@ -373,7 +373,7 @@ def test_main_cleanup_complete_log(
     dummy_event: object,
 ) -> None:
     """
-    Covers line 202: 'Bell cleanup complete.' log in main's finally block.
+    Tests that 'Bell cleanup complete.' is logged in main's cleanup.
     """
     bell_module, _, _ = fresh_bell_module
     caplog.set_level(logging.INFO)
@@ -421,7 +421,7 @@ def test_main_keyboard_interrupt(
     caplog: pytest.LogCaptureFixture,
     dummy_event: object,
 ) -> None:
-    """Covers lines 213-214: KeyboardInterrupt in main."""
+    """Tests KeyboardInterrupt handling in main."""
     bell_module, _, _ = fresh_bell_module
     caplog.set_level(logging.INFO)
 
@@ -580,7 +580,7 @@ def test_random_trigger_loop_no_trigger(
     monkeypatch.setattr(event, "wait", wait_once)
 
     bell_module.random_trigger_loop(stop_event=event)
-    # Covers line 132 if this is the log
+    # Checks log for silent bell event
     assert "...The bell remains silent..." in caplog.text
 
 
@@ -711,7 +711,7 @@ def test_main_pygame_mixer_quit_failure_in_finally_v1(
     caplog: pytest.LogCaptureFixture,
     dummy_event: object,
 ) -> None:
-    """Covers lines 170-171 (pygame.mixer.quit() fails in main's finally)."""
+    """Tests pygame.mixer.quit() failing in main's finally block (extra)."""
     bell_module, _, _ = fresh_bell_module  # noqa: E501
     caplog.set_level(logging.ERROR)
 
@@ -738,7 +738,7 @@ def test_start_sound_config_file_none(
     fresh_bell_module: tuple[ModuleType, ModuleType, "DummyMusic"],
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Covers lines 48-49 (config.BELL_SOUND_FILE is None)."""
+    """Tests config.BELL_SOUND_FILE is None."""
     bell_module, config_module, music_mock = fresh_bell_module  # noqa: E501
     caplog.set_level(logging.WARNING)
     monkeypatch.setattr(bell_module.config, "BELL_SOUND_FILE", None)
@@ -753,7 +753,7 @@ def test_stop_sound_when_not_busy(
     fresh_bell_module: tuple[ModuleType, ModuleType, "DummyMusic"],
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Covers lines 59-60 (sound is not playing)."""
+    """Tests sound is not playing."""
     bell_module, _, music_mock = fresh_bell_module
     music_mock._is_busy = False  # Explicitly set to not busy
 
@@ -773,7 +773,7 @@ def test_move_bell_interrupt_at_start(
     mock_servo: type,
     dummy_event: object,
 ) -> None:
-    """Covers lines 82-83 (stop_event.is_set() at start of move_bell)."""
+    """Tests stop_event.is_set() at start of move_bell."""
     bell_module, _, _ = fresh_bell_module
     caplog.set_level(logging.INFO)
     dummy_servo_instance = mock_servo()
@@ -794,7 +794,7 @@ def test_move_bell_num_moves_zero(
     mock_servo: type,
     dummy_event: object,
 ) -> None:
-    """Covers lines 95-96 (random.randint results in 0 moves)."""
+    """Tests random.randint results in 0 moves in move_bell."""
     bell_module, _, _ = fresh_bell_module
     caplog.set_level(logging.INFO)
     dummy_servo_instance = mock_servo()
@@ -814,7 +814,7 @@ def test_move_bell_servo_mid_failure_in_finally(
     dummy_event: object,
 ) -> None:
     """
-    Covers lines 99-105 (servo.mid() fails in move_bell's finally).
+    Tests servo.mid() fails in move_bell's finally block.
     """
     bell_module, _, _ = fresh_bell_module
     caplog.set_level(logging.ERROR)
@@ -879,7 +879,7 @@ def test_main_pygame_mixer_quit_failure_in_finally(
     dummy_event: "DummyEvent",
     mock_servo: type,
 ) -> None:
-    """Covers lines 170-171 (pygame.mixer.quit() fails in main's finally)."""
+    """Tests pygame.mixer.quit() failing in main's finally block (duplicate)."""
     bell_module, _, _ = fresh_bell_module  # noqa: E501
     caplog.set_level(logging.ERROR)
 

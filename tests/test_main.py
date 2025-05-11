@@ -262,7 +262,7 @@ def test_handle_shutdown_branches(
 
 
 def test_join_threads_attributeerror(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Covers _join_threads except AttributeError branch (line 165)."""
+    """Tests _join_threads except AttributeError branch."""
     mock_logger = MagicMock()
 
     class NoJoinObj(threading.Thread):
@@ -275,8 +275,7 @@ def test_join_threads_attributeerror(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_configure_logging_basic(monkeypatch: pytest.MonkeyPatch) -> None:
     """
-    Covers configure_logging default path
-    (line 100: logging.basicConfig).
+    Tests configure_logging default path (logging.basicConfig).
     """
     import argparse
     import logging
@@ -295,8 +294,7 @@ def test_configure_logging_sets_handlers(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """
-    Covers configure_logging when no handlers exist, ensuring
-    logging.basicConfig is called (line 100).
+    Tests configure_logging when no handlers exist, ensuring logging.basicConfig is called.
     """
     import argparse
     import logging
@@ -320,8 +318,7 @@ def test_configure_logging_sets_handlers(
 
 def test_configure_logging_real_basicconfig() -> None:
     """
-    Covers configure_logging real call to logging.basicConfig
-    (line 100) for coverage.
+    Tests configure_logging real call to logging.basicConfig.
     """
     import argparse
     import logging
@@ -336,7 +333,7 @@ def test_configure_logging_real_basicconfig() -> None:
 
 
 def test_join_threads_debug(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Covers _join_threads normal debug branch (line 161: logger.debug)."""
+    """Tests _join_threads normal debug branch (logger.debug)."""
     mock_logger = MagicMock()
     # Set logger.debug to a real function to check call
     calls = {}
