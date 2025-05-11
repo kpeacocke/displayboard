@@ -1,7 +1,7 @@
 from skaven.board import D18
 
 
-def test_d18_value() -> None:
+def test_d18_value(mock_board_pins: object) -> None:
     """
     Test to ensure D18 has the correct value.
     """

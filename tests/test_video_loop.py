@@ -1,8 +1,8 @@
 import sys
-import threading
 import types
 import pytest
 import platform
+import threading
 import skaven.video_loop as video_loop
 
 
@@ -308,19 +308,17 @@ def test_cleanup_process_kills_on_timeout(
 def test_cleanup_process_none(monkeypatch: pytest.MonkeyPatch) -> None:
     # Should do nothing
     video_loop.cleanup_process(None)
-
-
-def test_run_video_loop_breaks_on_none(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    event = threading.Event()
+    dummy_event = threading.Event()
     monkeypatch.setattr(video_loop, "handle_video_process", lambda proc: None)
-    result = video_loop.run_video_loop(event)
+    result = video_loop.run_video_loop(dummy_event)
     assert result is None
 
 
-def test_run_video_loop_runs_once(monkeypatch: pytest.MonkeyPatch) -> None:
-    event = threading.Event()
+def test_run_video_loop_runs_once(
+    monkeypatch: pytest.MonkeyPatch,
+    dummy_event: threading.Event,
+) -> None:
+
     called: dict[str, bool] = {}
 
     from unittest.mock import Mock
@@ -335,7 +333,7 @@ def test_run_video_loop_runs_once(monkeypatch: pytest.MonkeyPatch) -> None:
         return None
 
     monkeypatch.setattr(video_loop, "handle_video_process", handle_video_process)
-    result = video_loop.run_video_loop(event)
+    result = video_loop.run_video_loop(dummy_event)
     assert result is dummy_proc
 
 
@@ -370,10 +368,9 @@ def test_main_calls_all(monkeypatch: pytest.MonkeyPatch) -> None:
     assert called.get("play")
 
 
-def test_run_video_loop_event_set() -> None:
-    event = threading.Event()
-    event.set()  # Event is set before entering loop
-    result = video_loop.run_video_loop(event)
+def test_run_video_loop_event_set(dummy_event: threading.Event) -> None:
+    dummy_event.set()  # Event is set before entering loop
+    result = video_loop.run_video_loop(dummy_event)
     assert result is None
 
 

@@ -1,7 +1,6 @@
 import pytest
 import sys
 import threading
-import types
 from pathlib import Path
 from typing import (  # Group imports
     Any,
@@ -26,64 +25,9 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 
-# --- Fixtures for patching pygame, time, and random ---
+# --- Use centralized mock_pygame fixture from conftest.py ---
 @pytest.fixture(autouse=True)
-def patch_pygame(monkeypatch: pytest.MonkeyPatch) -> None:
-    # Use MagicMock for functions/methods we want to assert calls on
-    mock_mixer_init = MagicMock()
-    mock_set_num_channels = MagicMock()
-    mock_set_reserved = MagicMock()
-    mock_mixer_quit = MagicMock()
-
-    # Use a dictionary to store created sound mocks by path
-    created_sounds: Dict[Path, MagicMock] = {}
-
-    def sound_factory(path: Path) -> MagicMock:
-        # Return the same mock instance for simplicity, or create new ones
-        # if needed Store path if needed for assertions later
-        if path not in created_sounds:
-            # Create a new mock for each unique sound path
-            new_mock = MagicMock()
-            new_mock.set_volume = MagicMock()
-            new_mock.get_length.return_value = 0.01
-            new_mock.play = MagicMock()
-            new_mock._fake_path = path
-            created_sounds[path] = new_mock
-        return created_sounds[path]
-
-    # Use a dictionary to store created channel mocks by ID
-    created_channels: Dict[int, MagicMock] = {}
-
-    def channel_factory(i: int) -> MagicMock:
-        # Return a new MagicMock for each channel if state needs isolation
-        if i not in created_channels:
-            chan_mock = MagicMock()
-            chan_mock.set_volume = MagicMock()
-            chan_mock.play = MagicMock()
-            chan_mock.fadeout = MagicMock()
-            chan_mock._channel_id = i  # Store ID if needed
-            created_channels[i] = chan_mock
-        return created_channels[i]
-
-    # find_channel returns a channel mock (e.g., channel 0 by default)
-    mock_find_channel = MagicMock(return_value=channel_factory(0))
-
-    # Create the mixer namespace mock
-    mixer = types.SimpleNamespace(
-        init=mock_mixer_init,
-        set_num_channels=mock_set_num_channels,
-        Sound=sound_factory,  # Use the factory
-        Channel=channel_factory,  # Use the factory
-        find_channel=mock_find_channel,
-        set_reserved=mock_set_reserved,
-        quit=mock_mixer_quit,
-    )
-
-    # Patch the whole pygame module used by main
-    # Ensure pygame.error is still accessible if needed directly
-    mock_pygame = types.SimpleNamespace(
-        mixer=mixer, error=pygame.error, init=MagicMock()
-    )
+def patch_pygame(monkeypatch: pytest.MonkeyPatch, mock_pygame: MagicMock) -> None:
     monkeypatch.setattr(main, "pygame", mock_pygame)
 
 
@@ -250,7 +194,7 @@ def test_chains_loop_runs(
         # This function intentionally raises an exception for test control.
         # SonarLint S3516 can be ignored here.
         called["wait"] = True
-        raise BreakLoop()  # noqa: S3516
+        raise BreakLoop()
 
     monkeypatch.setattr(threading.Event, "wait", fake_wait)
 
@@ -282,7 +226,7 @@ def test_skaven_loop_runs(
         # This function intentionally raises an exception for test control.
         # SonarLint S3516 can be ignored here.
         called["wait"] = True
-        raise BreakLoop()  # noqa: S3516
+        raise BreakLoop()
 
     monkeypatch.setattr(threading.Event, "wait", fake_wait)
 
@@ -325,7 +269,7 @@ def test_rats_loop_runs(monkeypatch: pytest.MonkeyPatch) -> None:
         # (main loop sleep)
         if wait_call_count >= 2:
             raise BreakLoop()
-        return False  # Simulate timeout # noqa: S3516
+        return False  # Simulate timeout
 
     monkeypatch.setattr(threading.Event, "wait", fake_wait)
 
@@ -412,7 +356,7 @@ def test_skaven_loop_body(monkeypatch: pytest.MonkeyPatch) -> None:
         nonlocal wait_called
         if not wait_called:
             wait_called = True
-            return False  # Simulate timeout # noqa: S3516
+            return False  # Simulate timeout
         return False
 
     monkeypatch.setattr(threading.Event, "wait", fake_wait)

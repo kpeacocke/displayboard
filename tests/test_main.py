@@ -237,23 +237,24 @@ def test_handle_shutdown_exit_branch(monkeypatch: pytest.MonkeyPatch) -> None:
     dispatcher.handle_shutdown([], stop_event, mock_logger, args)
 
 
-def test_handle_shutdown_wait_branch(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_handle_shutdown_wait_branch(
+    monkeypatch: pytest.MonkeyPatch, dummy_event: threading.Event
+) -> None:
     """Covers handle_shutdown loop body (line 148: stop_event.wait)."""
     import argparse
 
     args = argparse.Namespace(no_video=True)
-    stop_event = threading.Event()
     call_count = {"wait": 0}
 
     def fake_wait(timeout: Optional[float] = None) -> bool:
         call_count["wait"] += 1
-        stop_event.set()  # Exit after one call
+        dummy_event.set()  # Exit after one call
         return False
 
-    monkeypatch.setattr(stop_event, "wait", fake_wait)
+    monkeypatch.setattr(dummy_event, "wait", fake_wait)
     mock_logger = MagicMock()
     monkeypatch.setattr(dispatcher, "_join_threads", lambda threads, logger: None)
-    dispatcher.handle_shutdown([], stop_event, mock_logger, args)
+    dispatcher.handle_shutdown([], dummy_event, mock_logger, args)
     assert call_count["wait"] == 1
 
 

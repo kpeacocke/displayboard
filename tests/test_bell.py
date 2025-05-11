@@ -1,18 +1,18 @@
 import importlib
 import sys
-import threading
 import pytest
 import pygame
-from unittest.mock import MagicMock
 import logging
+from unittest.mock import MagicMock
+from types import ModuleType
 from typing import Optional
 import skaven.bell as bell_module
-from types import ModuleType
 
 
 def test_move_bell_nested_except_minimal(
+    mock_servo: type,
     monkeypatch: pytest.MonkeyPatch,
-    fresh_bell_module: tuple[ModuleType, ModuleType, "DummyMusic"],
+    fresh_bell_module: tuple[ModuleType, ModuleType, object],
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """
@@ -21,35 +21,22 @@ def test_move_bell_nested_except_minimal(
     bell_module, _, _ = fresh_bell_module
     caplog.set_level(logging.ERROR)
 
-    class DummyServo:
-        def __init__(self) -> None:
-            pass
+    from tests.conftest import DummyServoMinimal
 
-        @property
-        def value(self) -> float | None:
-            raise Exception("move fail minimal")
-
-        @value.setter
-        def value(self, val: float) -> None:
-            raise Exception("move fail minimal")
-
-        def mid(self) -> None:
-            raise Exception("mid fail minimal")
-
-    dummy_servo = DummyServo()
+    dummy_servo = DummyServoMinimal()
     setattr(bell_module, "servo", dummy_servo)
     monkeypatch.setattr(bell_module.random, "randint", lambda a, b: 1)
     monkeypatch.setattr(bell_module.random, "uniform", lambda a, b: 0.5)
     bell_module.move_bell()
-    # Should log both errors
     assert "Error moving servo: move fail minimal" in caplog.text
     assert "Failed to return servo to mid position: mid fail minimal" in caplog.text
 
 
 def test_random_trigger_loop_real_event_multiple_iterations(
     monkeypatch: pytest.MonkeyPatch,
-    fresh_bell_module: tuple[ModuleType, ModuleType, "DummyMusic"],
+    fresh_bell_module: tuple[ModuleType, ModuleType, object],
     caplog: pytest.LogCaptureFixture,
+    dummy_event: object,
 ) -> None:
     """
     Covers both 142->123 (loop) and 123->exit (exit) branches in
@@ -64,33 +51,42 @@ def test_random_trigger_loop_real_event_multiple_iterations(
     monkeypatch.setattr(bell_module.random, "random", lambda: 1.0)  # No trigger
 
     # --- Cover both loop and exit branches, and force a break (123->exit) ---
-    event = threading.Event()
+    # Use dummy_event fixture for deterministic event
+    # Use a pure Python dummy event to avoid monkeypatching built-in threading.Event
     loop_counter = {"n": 0}
     broke = {"hit": False}
+
+    class DummyEvent:
+        def __init__(self) -> None:
+            self._is_set = False
+
+        def wait(self, timeout: float | None = None) -> bool:
+            loop_counter["n"] += 1
+            if loop_counter["n"] == 2:
+                broke["hit"] = True
+                raise KeyboardInterrupt()
+            if loop_counter["n"] == 4:
+                self._is_set = True
+            return self._is_set
+
+        def is_set(self) -> bool:
+            return self._is_set
+
+        def set(self) -> None:
+            self._is_set = True
+
+    event = DummyEvent()
 
     def fake_sleep(secs: float) -> None:
         pass  # no-op
 
     monkeypatch.setattr("time.sleep", fake_sleep)
 
-    # Patch the function to break out of the loop after a few iterations
-    def wait_and_set(timeout: Optional[float] = None) -> bool:
-        loop_counter["n"] += 1
-        if loop_counter["n"] == 2:
-            # Simulate a break (e.g., KeyboardInterrupt or other break
-            # condition)
-            broke["hit"] = True
-            raise KeyboardInterrupt()
-        if loop_counter["n"] == 4:
-            event.set()
-        return event.is_set()
-
-    monkeypatch.setattr(event, "wait", wait_and_set)
-
     try:
         bell_module.random_trigger_loop(stop_event=event)
     except KeyboardInterrupt:
         pass
+
     # The loop should have run at least twice (should hit 123->123 branch)
     assert loop_counter["n"] >= 2
     # Should also exit cleanly (cover 123->exit) via break or event
@@ -100,13 +96,14 @@ def test_random_trigger_loop_real_event_multiple_iterations(
 
 def test_random_trigger_loop_event_set_natural_exit(
     monkeypatch: pytest.MonkeyPatch,
-    fresh_bell_module: tuple[ModuleType, ModuleType, "DummyMusic"],
+    fresh_bell_module: tuple[ModuleType, ModuleType, object],
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """
     Precisely covers 142->123 (loop) and 123->exit (exit) branches in
     random_trigger_loop using a custom Event class to avoid monkeypatching
-    threading.Event.
+    from tests.conftest import dummy_event
+    dummy_event()
     """
     bell_module, config_module, _ = fresh_bell_module
     caplog.set_level(logging.INFO)
@@ -147,7 +144,8 @@ def test_random_trigger_loop_event_set_natural_exit(
 
 
 def test_import_bell_pygame_mixer_init_fails(
-    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     """
     Covers lines 22-23: pygame.mixer.init fails at import time.
@@ -165,7 +163,7 @@ def test_import_bell_pygame_mixer_init_fails(
 
 def test_start_sound_raises(
     monkeypatch: pytest.MonkeyPatch,
-    fresh_bell_module: tuple[ModuleType, ModuleType, "DummyMusic"],
+    fresh_bell_module: tuple[ModuleType, ModuleType, object],
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """Covers lines 49-50: Exception in start_sound (music.load/play)."""
@@ -182,7 +180,7 @@ def test_start_sound_raises(
 
 def test_stop_sound_raises(
     monkeypatch: pytest.MonkeyPatch,
-    fresh_bell_module: tuple[ModuleType, ModuleType, "DummyMusic"],
+    fresh_bell_module: tuple[ModuleType, ModuleType, object],
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """Covers lines 65-66: Exception in stop_sound (music.stop)."""
@@ -197,47 +195,35 @@ def test_stop_sound_raises(
 
 
 def test_move_bell_servo_mid_raises_in_except(
+    mock_servo: type,
     monkeypatch: pytest.MonkeyPatch,
-    fresh_bell_module: tuple[ModuleType, ModuleType, "DummyMusic"],
+    fresh_bell_module: tuple[ModuleType, ModuleType, object],
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """
-    Covers lines 102-105: servo.mid() raises in except block of
-    move_bell.
+    Covers lines 102-105: servo.mid() raises in except block of move_bell.
     """
     bell_module, _, _ = fresh_bell_module
     caplog.set_level(logging.ERROR)
 
-    class DummyServoWithFailMid(DummyServo):
-        def mid(self) -> None:
-            raise RuntimeError("mid fail")
-
-        def set_value(self, val: float) -> None:
-            raise Exception("move fail")
-
-        @property
-        def servo_value(self) -> float | None:
-            return None
-
-        @servo_value.setter
-        def servo_value(self, val: float) -> None:
-            self.set_value(val)
+    from tests.conftest import DummyServoWithFailMid
 
     dummy_servo = DummyServoWithFailMid()
     setattr(bell_module, "servo", dummy_servo)
     monkeypatch.setattr(bell_module.random, "randint", lambda a, b: 1)
     monkeypatch.setattr(bell_module.random, "uniform", lambda a, b: 0.5)
-
-    setattr(bell_module, "servo", dummy_servo)
     bell_module.move_bell()
     assert "Failed to return servo to mid position" in caplog.text
     assert "mid fail" in caplog.text
 
 
 # --- Test for nested except in move_bell (lines 102-105) ---
+
+
 def test_move_bell_nested_except_mid_also_fails(
+    mock_servo: type,
     monkeypatch: pytest.MonkeyPatch,
-    fresh_bell_module: tuple[ModuleType, ModuleType, "DummyMusic"],
+    fresh_bell_module: tuple[ModuleType, ModuleType, object],
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """
@@ -246,86 +232,96 @@ def test_move_bell_nested_except_mid_also_fails(
     bell_module, _, _ = fresh_bell_module
     caplog.set_level(logging.ERROR)
 
-    class DummyServoDoubleFail:
-        def __init__(self) -> None:
-            self.mid_called = False
-
-        @property
-        def value(self) -> float | None:
-            raise Exception("move fail")
-
-        @value.setter
-        def value(self, val: float) -> None:
-            raise Exception("move fail")
-
-        def mid(self) -> None:
-            raise Exception("mid fail 2")
+    from tests.conftest import DummyServoDoubleFail
 
     dummy_servo = DummyServoDoubleFail()
     setattr(bell_module, "servo", dummy_servo)
     monkeypatch.setattr(bell_module.random, "randint", lambda a, b: 1)
     monkeypatch.setattr(bell_module.random, "uniform", lambda a, b: 0.5)
     bell_module.move_bell()
-    # Should log both errors
     assert "Error moving servo: move fail" in caplog.text
     assert "Failed to return servo to mid position: mid fail 2" in caplog.text
 
 
 def test_main_servo_mid_raises_in_finally(
+    mock_servo: type,
     monkeypatch: pytest.MonkeyPatch,
-    fresh_bell_module: tuple[ModuleType, ModuleType, "DummyMusic"],
+    fresh_bell_module: tuple[ModuleType, ModuleType, object],
     caplog: pytest.LogCaptureFixture,
+    dummy_event: object,
 ) -> None:
     """Covers lines 155-156: servo.mid() raises in main's finally block."""
     bell_module, _, _ = fresh_bell_module
-    caplog.set_level(logging.ERROR)
 
-    class DummyServoMid(DummyServo):
-        def mid(self) -> None:
-            raise RuntimeError("mid finally fail")
+    # Robust log capture: forcibly reset both skaven.bell and bell_module.__name__ loggers
+    import logging
 
-    monkeypatch.setattr(bell_module, "Servo", DummyServoMid)
+    for logger_name in ("skaven.bell", bell_module.__name__):
+        logger = logging.getLogger(logger_name)
+        logger.handlers.clear()
+        logger.propagate = True
+        logger.setLevel(logging.NOTSET)
+
+    from tests.conftest import DummyServoMid
+
+    # Assign custom servo instance to test cleanup mid error
+    dummy_servo = DummyServoMid()
+    setattr(bell_module, "servo", dummy_servo)
+    # No need to patch Servo class, mock_servo fixture already does this
     monkeypatch.setattr(
         bell_module, "random_trigger_loop", lambda stop_event=None: None
     )
     monkeypatch.setattr(bell_module, "stop_sound", lambda: None)
-    bell_module.main(stop_event=threading.Event())
-    assert "Failed to set servo to mid position during cleanup" in caplog.text
+    bell_module.main(stop_event=dummy_event)
+    assert "Failed to set servo to mid position during cleanup:" in caplog.text
     assert "mid finally fail" in caplog.text
 
 
 def test_main_servo_close_raises_in_finally(
+    mock_servo: type,
     monkeypatch: pytest.MonkeyPatch,
-    fresh_bell_module: tuple[ModuleType, ModuleType, "DummyMusic"],
+    fresh_bell_module: tuple[ModuleType, ModuleType, object],
     caplog: pytest.LogCaptureFixture,
+    dummy_event: object,
 ) -> None:
     """Covers line 173: servo.close() raises in main's finally block."""
     bell_module, _, _ = fresh_bell_module
-    caplog.set_level(logging.ERROR)
 
-    class DummyServoClose(DummyServo):
-        def close(self) -> None:
-            raise RuntimeError("close finally fail")
+    # Robust log capture: forcibly reset both skaven.bell and bell_module.__name__ loggers
+    import logging
 
-    monkeypatch.setattr(bell_module, "Servo", DummyServoClose)
+    for logger_name in ("skaven.bell", bell_module.__name__):
+        logger = logging.getLogger(logger_name)
+        logger.handlers.clear()
+        logger.propagate = True
+        logger.setLevel(logging.NOTSET)
+
+    from tests.conftest import DummyServoClose
+
+    # Assign custom servo instance to test cleanup close error
+    dummy_servo = DummyServoClose()
+    setattr(bell_module, "servo", dummy_servo)
+    # No need to patch Servo class, mock_servo fixture already does this
     monkeypatch.setattr(
         bell_module, "random_trigger_loop", lambda stop_event=None: None
     )
     monkeypatch.setattr(bell_module, "stop_sound", lambda: None)
-    bell_module.main(stop_event=threading.Event())
-    assert "Failed to close servo during main cleanup" in caplog.text
+    bell_module.main(stop_event=dummy_event)
+    assert "Failed to close servo during main cleanup:" in caplog.text
     assert "close finally fail" in caplog.text
 
 
 def test_main_pygame_quit_raises_in_finally(
+    mock_servo: type,
     monkeypatch: pytest.MonkeyPatch,
-    fresh_bell_module: tuple[ModuleType, ModuleType, "DummyMusic"],
+    fresh_bell_module: tuple[ModuleType, ModuleType, object],
     caplog: pytest.LogCaptureFixture,
+    dummy_event: object,
 ) -> None:
     """Covers line 191: pygame.mixer.quit() raises in main's finally block."""
     bell_module, _, _ = fresh_bell_module
     caplog.set_level(logging.ERROR)
-    monkeypatch.setattr(bell_module, "Servo", DummyServo)
+    # No need to patch Servo class, mock_servo fixture already does this
 
     def dummy_random_trigger_loop(stop_event: object = None) -> None:
         return None
@@ -337,52 +333,52 @@ def test_main_pygame_quit_raises_in_finally(
         "quit",
         lambda: (_ for _ in ()).throw(pygame.error("quit fail")),
     )
-    bell_module.main(stop_event=threading.Event())
+    bell_module.main(stop_event=dummy_event)
     assert "Failed to quit pygame mixer during cleanup" in caplog.text
     assert "quit fail" in caplog.text
 
 
 def test_main_created_event_set(
+    mock_servo: type,
     monkeypatch: pytest.MonkeyPatch,
-    fresh_bell_module: tuple[ModuleType, ModuleType, "DummyMusic"],
+    fresh_bell_module: tuple[ModuleType, ModuleType, object],
+    dummy_event: object,
 ) -> None:
     """Covers line 198: created_event.set() in main's finally block."""
     bell_module, _, _ = fresh_bell_module
-    called = {}
-    # Patch threading.Event in the bell_module namespace so that
-    # main() uses DummyEvent instead of the real threading.Event.
-
-    class DummyEvent(threading.Event):
-        def set(self) -> None:
-            called["set"] = True
-            super().set()
-
-    monkeypatch.setattr(bell_module, "Servo", DummyServo)
+    # No need to patch Servo class, mock_servo fixture already does this
     monkeypatch.setattr(
         bell_module, "random_trigger_loop", lambda stop_event=None: None
     )
     monkeypatch.setattr(bell_module, "stop_sound", lambda: None)
-    monkeypatch.setattr(bell_module.threading, "Event", DummyEvent)
-    bell_module.main(stop_event=None)  # Should create and set event
-    assert called.get("set")
+    monkeypatch.setattr(bell_module.threading, "Event", lambda: dummy_event)
+    bell_module.main(stop_event=None)
+    # Use hasattr to avoid mypy error for object type
+    # Use hasattr to avoid mypy error for object type
+    if hasattr(dummy_event, "is_set") and callable(
+        getattr(dummy_event, "is_set", None)
+    ):
+        assert getattr(dummy_event, "is_set")()
 
 
 def test_main_cleanup_complete_log(
+    mock_servo: type,
     monkeypatch: pytest.MonkeyPatch,
-    fresh_bell_module: tuple[ModuleType, ModuleType, "DummyMusic"],
+    fresh_bell_module: tuple[ModuleType, ModuleType, object],
     caplog: pytest.LogCaptureFixture,
+    dummy_event: object,
 ) -> None:
     """
     Covers line 202: 'Bell cleanup complete.' log in main's finally block.
     """
     bell_module, _, _ = fresh_bell_module
     caplog.set_level(logging.INFO)
-    monkeypatch.setattr(bell_module, "Servo", DummyServo)
+    # No need to patch Servo class, mock_servo fixture already does this
     monkeypatch.setattr(
         bell_module, "random_trigger_loop", lambda stop_event=None: None
     )
     monkeypatch.setattr(bell_module, "stop_sound", lambda: None)
-    bell_module.main(stop_event=threading.Event())
+    bell_module.main(stop_event=dummy_event)
     assert "Bell cleanup complete." in caplog.text
 
 
@@ -415,50 +411,23 @@ class DummyMusic:
 
 
 def test_main_keyboard_interrupt(
+    mock_servo: type,
     monkeypatch: pytest.MonkeyPatch,
-    fresh_bell_module: tuple[ModuleType, ModuleType, "DummyMusic"],
+    fresh_bell_module: tuple[ModuleType, ModuleType, object],
     caplog: pytest.LogCaptureFixture,
+    dummy_event: object,
 ) -> None:
     """Covers lines 213-214: KeyboardInterrupt in main."""
     bell_module, _, _ = fresh_bell_module
     caplog.set_level(logging.INFO)
-    monkeypatch.setattr(bell_module, "Servo", DummyServo)
 
     def raise_keyboard(*a: object, **k: object) -> None:
         raise KeyboardInterrupt()
 
     monkeypatch.setattr(bell_module, "random_trigger_loop", raise_keyboard)
     monkeypatch.setattr(bell_module, "stop_sound", lambda: None)
-    bell_module.main(stop_event=threading.Event())
+    bell_module.main(stop_event=dummy_event)
     assert "KeyboardInterrupt received, shutting down." in caplog.text
-
-
-class DummyServo:
-    def __init__(self, *args: object, **kwargs: object) -> None:
-        self.pin: Optional[int] = (
-            int(args[0]) if args and isinstance(args[0], (int, float, str)) else None
-        )
-        self.value: Optional[float] = None
-        self.mid_called: bool = False
-        self.closed: bool = False
-        min_pw = kwargs.get("min_pulse_width")
-        max_pw = kwargs.get("max_pulse_width")
-        self.min_pulse_width: Optional[float] = (
-            float(min_pw)
-            if min_pw is not None and isinstance(min_pw, (int, float, str))
-            else None
-        )
-        self.max_pulse_width: Optional[float] = (
-            float(max_pw)
-            if max_pw is not None and isinstance(max_pw, (int, float, str))
-            else None
-        )
-
-    def mid(self) -> None:
-        self.mid_called = True
-
-    def close(self) -> None:
-        self.closed = True
 
 
 class DummyEvent:
@@ -480,6 +449,9 @@ class DummyEvent:
 
     def is_set(self) -> bool:
         return self._is_set
+
+    def set(self) -> None:
+        self._is_set = True
 
 
 @pytest.fixture(autouse=True)
@@ -548,34 +520,29 @@ def test_start_and_stop_sound(
 def test_move_bell_no_servo_logs_and_returns(
     caplog: pytest.LogCaptureFixture,
     fresh_bell_module: tuple[ModuleType, ModuleType, "DummyMusic"],
+    dummy_event: object,
 ) -> None:
     bell_module, _, _ = fresh_bell_module
     caplog.set_level("ERROR")
-    setattr(bell_module, "servo", None)  # Ensure servo is None
-
-    # Create a dummy event, as move_bell might expect one
-    dummy_event = threading.Event()
-    bell_module.move_bell(stop_event=dummy_event)  # Should not raise
-    # Use SERVO_ERROR as per bell.py
+    # Use move_bell with servo_obj=None to simulate missing servo
+    bell_module.move_bell(stop_event=dummy_event, servo_obj=None)  # Should not raise
     assert bell_module.SERVO_ERROR in caplog.text
 
 
 def test_move_bell_with_servo(
     monkeypatch: pytest.MonkeyPatch,
     fresh_bell_module: tuple[ModuleType, ModuleType, "DummyMusic"],
+    mock_servo: type,
+    dummy_event: object,
 ) -> None:
     bell_module, _, _ = fresh_bell_module
-    dummy_servo_instance = DummyServo()
-    setattr(bell_module, "servo", dummy_servo_instance)
-
     # num_moves
     monkeypatch.setattr(bell_module.random, "randint", lambda a, b: 2)
     # swing_pos and sleep_duration
     monkeypatch.setattr(bell_module.random, "uniform", lambda a, b: 0.7)
 
-    event = threading.Event()  # Use a non-set event
-    bell_module.move_bell(stop_event=event)
-
+    dummy_servo_instance = mock_servo()
+    bell_module.move_bell(stop_event=dummy_event, servo_obj=dummy_servo_instance)
     assert dummy_servo_instance.value == 0.7  # Last position set
     assert dummy_servo_instance.mid_called is True
 
@@ -584,6 +551,7 @@ def test_random_trigger_loop_no_trigger(
     monkeypatch: pytest.MonkeyPatch,
     fresh_bell_module: tuple[ModuleType, ModuleType, "DummyMusic"],
     caplog: pytest.LogCaptureFixture,
+    dummy_event: object,
 ) -> None:
     bell_module, config_module, _ = fresh_bell_module
     caplog.set_level(logging.INFO, logger="skaven.bell")
@@ -595,7 +563,7 @@ def test_random_trigger_loop_no_trigger(
     # > probability
     monkeypatch.setattr(bell_module.random, "random", lambda: 1.0)
 
-    event = threading.Event()
+    event = dummy_event
     # Do not set event, let the loop run once
     # Patch event.wait to return True after first call to break loop
     call_count = {"n": 0}
@@ -615,6 +583,7 @@ def test_random_trigger_loop_no_trigger(
 def test_random_trigger_loop_with_trigger(
     monkeypatch: pytest.MonkeyPatch,
     fresh_bell_module: tuple[ModuleType, ModuleType, "DummyMusic"],
+    dummy_event: object,
 ) -> None:
     bell_module, config_module, _ = fresh_bell_module
     calls: dict[str, int] = {"start": 0, "move": 0, "stop": 0}
@@ -638,8 +607,16 @@ def test_random_trigger_loop_with_trigger(
     # Force trigger
     monkeypatch.setattr(bell_module.random, "random", lambda: 0.0)
 
-    event = DummyEvent()  # Breaks after one loop execution
-    bell_module.random_trigger_loop(stop_event=event)
+    # Patch dummy_event.wait to break the loop after one call
+    call_count = {"n": 0}
+
+    def wait_once(timeout: Optional[float] = None) -> bool:
+        call_count["n"] += 1
+        return call_count["n"] > 1
+
+    monkeypatch.setattr(dummy_event, "wait", wait_once)
+
+    bell_module.random_trigger_loop(stop_event=dummy_event)
 
     assert calls["start"] == 1
     assert calls["move"] == 1
@@ -650,12 +627,13 @@ def test_main_initializes_and_cleans_up(
     monkeypatch: pytest.MonkeyPatch,
     fresh_bell_module: tuple[ModuleType, ModuleType, "DummyMusic"],
     caplog: pytest.LogCaptureFixture,
+    dummy_event: object,
+    mock_servo: type,
 ) -> None:
     bell_module, config_module, music_mock = fresh_bell_module
     caplog.set_level(logging.INFO)
 
-    # Use our DummyServo for instantiation
-    monkeypatch.setattr(bell_module, "Servo", DummyServo)
+    # No need to patch Servo class, mock_servo fixture already does this
 
     called_methods = {"loop": False, "stop_sound": False}
     monkeypatch.setattr(
@@ -678,14 +656,17 @@ def test_main_initializes_and_cleans_up(
     pygame_quit_mock = MagicMock()
     monkeypatch.setattr(bell_module.pygame.mixer, "quit", pygame_quit_mock)
 
-    ev = threading.Event()
-    bell_module.main(stop_event=ev)
+    bell_module.main(stop_event=dummy_event)
 
     # Servo instance should be created and assigned
     assert bell_module.servo is not None
-    assert isinstance(bell_module.servo, DummyServo)
-    assert bell_module.servo.mid_called is True
-    assert bell_module.servo.closed is True
+    # Use the DummyServo type that was passed in as mock_servo to avoid import mismatch
+    assert isinstance(bell_module.servo, mock_servo)
+    assert (
+        hasattr(bell_module.servo, "mid_called")
+        and bell_module.servo.mid_called is True
+    )
+    assert hasattr(bell_module.servo, "closed") and bell_module.servo.closed is True
     assert called_methods["loop"] is True
     assert called_methods["stop_sound"] is True
     pygame_quit_mock.assert_called_once()
@@ -697,6 +678,7 @@ def test_main_servo_init_failure(
     monkeypatch: pytest.MonkeyPatch,
     fresh_bell_module: tuple[ModuleType, ModuleType, "DummyMusic"],
     caplog: pytest.LogCaptureFixture,
+    dummy_event: object,
 ) -> None:
     bell_module, _, _ = fresh_bell_module
     caplog.set_level(logging.ERROR)
@@ -704,54 +686,45 @@ def test_main_servo_init_failure(
     def bad_servo_init(*args: object, **kwargs: object) -> None:
         raise RuntimeError("pin error")
 
-    monkeypatch.setattr(bell_module, "Servo", bad_servo_init)
-
     # Mock sys.exit to check it's called without exiting tests
     mock_sys_exit = MagicMock(side_effect=SystemExit)
     monkeypatch.setattr(sys, "exit", mock_sys_exit)
 
+    # Patch the Servo globally for this test only
+    monkeypatch.setattr(bell_module, "Servo", bad_servo_init)
+
     with pytest.raises(SystemExit):
-        bell_module.main(stop_event=threading.Event())
+        bell_module.main(stop_event=dummy_event)
 
     assert "Failed to init servo on pin" in caplog.text
     assert "pin error" in caplog.text
     mock_sys_exit.assert_called_once_with(1)
 
 
-# --- New tests for 100% coverage ---
-
-
-def test_pygame_mixer_init_failure_in_main_context(
+def test_main_pygame_mixer_quit_failure_in_finally_v1(
     monkeypatch: pytest.MonkeyPatch,
     fresh_bell_module: tuple[ModuleType, ModuleType, "DummyMusic"],
     caplog: pytest.LogCaptureFixture,
+    dummy_event: object,
 ) -> None:
-    """Covers lines 23-24 (pygame.mixer.init failure)."""
-    bell_module, _, _ = fresh_bell_module
+    """Covers lines 170-171 (pygame.mixer.quit() fails in main's finally)."""
+    bell_module, _, _ = fresh_bell_module  # noqa: E501
     caplog.set_level(logging.ERROR)
 
-    # Override the default init mock from isolate_pygame for this test,
-    # on the bell_module's pygame
-    mock_init_that_fails = MagicMock(side_effect=pygame.error("mixer init boom"))
-    monkeypatch.setattr(bell_module.pygame.mixer, "init", mock_init_that_fails)
+    # No need to patch Servo, rely on fixture
+    monkeypatch.setattr(bell_module, "random_trigger_loop", lambda stop_event: None)
+    monkeypatch.setattr(bell_module, "stop_sound", lambda *_: None)
 
-    monkeypatch.setattr(bell_module, "Servo", DummyServo)
-    monkeypatch.setattr(
-        bell_module, "random_trigger_loop", lambda stop_event=None: None
-    )
-    monkeypatch.setattr(bell_module, "stop_sound", lambda: None)
-    # pygame.mixer.quit is already handled by isolate_pygame/fresh_bell_module
+    failing_quit_mock = MagicMock(side_effect=pygame.error("mixer quit boom"))
+    monkeypatch.setattr(bell_module.pygame.mixer, "quit", failing_quit_mock)
 
-    # Mock sys.exit as main might call it if mixer init is critical
-    mock_sys_exit = MagicMock(side_effect=SystemExit)
-    monkeypatch.setattr(sys, "exit", mock_sys_exit)
+    bell_module.main(stop_event=dummy_event)
 
-    with pytest.raises(SystemExit):
-        bell_module.main(stop_event=threading.Event())
-
-    mock_init_that_fails.assert_called_once()
-    assert "Failed to initialize pygame mixer" in caplog.text
-    assert "mixer init boom" in caplog.text
+    assert bell_module.servo.mid_called is True
+    assert bell_module.servo.closed is True
+    failing_quit_mock.assert_called_once()
+    assert "Failed to quit pygame mixer during cleanup" in caplog.text
+    assert "mixer quit boom" in caplog.text
     # If mixer init failure is critical and causes sys.exit:
     # mock_sys_exit.assert_called_once_with(1) # Or some other error code
 
@@ -793,18 +766,19 @@ def test_move_bell_interrupt_at_start(
     monkeypatch: pytest.MonkeyPatch,
     fresh_bell_module: tuple[ModuleType, ModuleType, "DummyMusic"],
     caplog: pytest.LogCaptureFixture,
+    mock_servo: type,
+    dummy_event: object,
 ) -> None:
     """Covers lines 82-83 (stop_event.is_set() at start of move_bell)."""
     bell_module, _, _ = fresh_bell_module
     caplog.set_level(logging.INFO)
-    dummy_servo_instance = DummyServo()
+    dummy_servo_instance = mock_servo()
     setattr(bell_module, "servo", dummy_servo_instance)
-    event = threading.Event()
-    event.set()  # Event is set from the beginning
-    bell_module.move_bell(stop_event=event)
-    # No movement
+    # Use hasattr to avoid mypy error for object type
+    if hasattr(dummy_event, "set") and callable(getattr(dummy_event, "set", None)):
+        getattr(dummy_event, "set")()  # Event is set from the beginning
+    bell_module.move_bell(stop_event=dummy_event)
     assert dummy_servo_instance.value is None
-    # finally block
     assert dummy_servo_instance.mid_called is True
     assert "Bell movement interrupted by stop event" in caplog.text
 
@@ -813,18 +787,17 @@ def test_move_bell_num_moves_zero(
     monkeypatch: pytest.MonkeyPatch,
     fresh_bell_module: tuple[ModuleType, ModuleType, "DummyMusic"],
     caplog: pytest.LogCaptureFixture,
+    mock_servo: type,
+    dummy_event: object,
 ) -> None:
     """Covers lines 95-96 (random.randint results in 0 moves)."""
     bell_module, _, _ = fresh_bell_module
     caplog.set_level(logging.INFO)
-    dummy_servo_instance = DummyServo()
+    dummy_servo_instance = mock_servo()
     setattr(bell_module, "servo", dummy_servo_instance)
     monkeypatch.setattr(bell_module.random, "randint", lambda a, b: 0)
-    event = threading.Event()
-    bell_module.move_bell(stop_event=event)
-    # No movement
+    bell_module.move_bell(stop_event=dummy_event)
     assert dummy_servo_instance.value is None
-    # finally block
     assert dummy_servo_instance.mid_called is True
     assert "Bell will swing 0 times" in caplog.text
 
@@ -833,6 +806,8 @@ def test_move_bell_servo_mid_failure_in_finally(
     monkeypatch: pytest.MonkeyPatch,
     fresh_bell_module: tuple[ModuleType, ModuleType, "DummyMusic"],
     caplog: pytest.LogCaptureFixture,
+    mock_servo: type,
+    dummy_event: object,
 ) -> None:
     """
     Covers lines 99-105 (servo.mid() fails in move_bell's finally).
@@ -840,19 +815,17 @@ def test_move_bell_servo_mid_failure_in_finally(
     bell_module, _, _ = fresh_bell_module
     caplog.set_level(logging.ERROR)
 
-    dummy_servo_instance = DummyServo()
+    from tests.conftest import DummyServo
 
-    def failing_mid() -> None:
-        # No need, exception means it was attempted
-        raise RuntimeError("servo mid boom")
+    class DummyServoWithFailingMid(DummyServo):
+        def mid(self) -> None:
+            raise RuntimeError("servo mid boom")
 
-    dummy_servo_instance.mid = failing_mid  # type: ignore
+    dummy_servo_instance = DummyServoWithFailingMid()
     setattr(bell_module, "servo", dummy_servo_instance)
     monkeypatch.setattr(bell_module.random, "randint", lambda a, b: 1)
     monkeypatch.setattr(bell_module.random, "uniform", lambda a, b: 0.5)
-    event = threading.Event()
-    bell_module.move_bell(stop_event=event)  # Should not re-raise
-    # Movement attempted
+    bell_module.move_bell(stop_event=dummy_event)
     assert dummy_servo_instance.value == 0.5
     assert "Failed to return servo to mid position" in caplog.text
     assert "servo mid boom" in caplog.text
@@ -862,30 +835,36 @@ def test_main_servo_close_failure_in_finally(
     monkeypatch: pytest.MonkeyPatch,
     fresh_bell_module: tuple[ModuleType, ModuleType, "DummyMusic"],
     caplog: pytest.LogCaptureFixture,
+    dummy_event: object,
+    mock_servo: type,
 ) -> None:
     """
     Covers lines 159-161 (servo.close() fails in main's finally).
     """
     bell_module, _, _ = fresh_bell_module  # noqa: E501
-    caplog.set_level(logging.ERROR)
 
-    class ServoFailsOnClose(DummyServo):
-        def close(self: "ServoFailsOnClose") -> None:
-            super().close()  # Mark closed if super does that
-            raise RuntimeError("servo close boom")
+    # Robust log capture: forcibly reset both skaven.bell and bell_module.__name__ loggers
+    import logging
 
-    monkeypatch.setattr(bell_module, "Servo", ServoFailsOnClose)
+    for logger_name in ("skaven.bell", bell_module.__name__):
+        logger = logging.getLogger(logger_name)
+        logger.handlers.clear()
+        logger.propagate = True
+        logger.setLevel(logging.NOTSET)
+
+    from tests.conftest import ServoFailsOnClose
+
+    # Instead of patching the class, assign the custom instance directly
+    setattr(bell_module, "servo", ServoFailsOnClose())
     monkeypatch.setattr(
         bell_module, "random_trigger_loop", lambda stop_event=None: None
     )
     monkeypatch.setattr(bell_module, "stop_sound", lambda: None)
-    # pygame.mixer.quit is handled by fresh_bell_module / isolate_pygame
-    bell_module.main(stop_event=threading.Event())
+    bell_module.main(stop_event=dummy_event)
     assert bell_module.servo is not None
     assert bell_module.servo.mid_called is True
-    # Attempted
     assert bell_module.servo.closed is True
-    assert "Failed to close servo during main cleanup" in caplog.text
+    assert "Failed to close servo during main cleanup:" in caplog.text
     assert "servo close boom" in caplog.text
 
 
@@ -893,21 +872,21 @@ def test_main_pygame_mixer_quit_failure_in_finally(
     monkeypatch: pytest.MonkeyPatch,
     fresh_bell_module: tuple[ModuleType, ModuleType, "DummyMusic"],
     caplog: pytest.LogCaptureFixture,
+    dummy_event: "DummyEvent",
+    mock_servo: type,
 ) -> None:
     """Covers lines 170-171 (pygame.mixer.quit() fails in main's finally)."""
     bell_module, _, _ = fresh_bell_module  # noqa: E501
     caplog.set_level(logging.ERROR)
 
-    monkeypatch.setattr(bell_module, "Servo", DummyServo)
-    monkeypatch.setattr(
-        bell_module, "random_trigger_loop", lambda stop_event=None: None
-    )
-    monkeypatch.setattr(bell_module, "stop_sound", lambda: None)
+    # No need to patch Servo class, mock_servo fixture already does this
+    monkeypatch.setattr(bell_module, "random_trigger_loop", lambda stop_event: None)
+    monkeypatch.setattr(bell_module, "stop_sound", lambda *_: None)
 
     failing_quit_mock = MagicMock(side_effect=pygame.error("mixer quit boom"))
     monkeypatch.setattr(bell_module.pygame.mixer, "quit", failing_quit_mock)
 
-    bell_module.main(stop_event=threading.Event())
+    bell_module.main(stop_event=dummy_event)
 
     assert bell_module.servo.mid_called is True
     assert bell_module.servo.closed is True

@@ -1,4 +1,3 @@
-import threading
 import sys
 import importlib
 import types
@@ -7,8 +6,10 @@ from typing import Generator
 from _pytest.monkeypatch import MonkeyPatch
 
 
-def test_skaven_flicker_breathe_runs_and_stops() -> None:
-    stop_event = threading.Event()
+def test_skaven_flicker_breathe_runs_and_stops(
+    mock_neopixel: MagicMock, dummy_event: MagicMock
+) -> None:
+    stop_event = dummy_event
 
     def time_generator() -> Generator[float, None, None]:
         t = 0.0
@@ -19,7 +20,7 @@ def test_skaven_flicker_breathe_runs_and_stops() -> None:
     time_gen = time_generator()
     call_count = 0
 
-    def mock_wait(timeout: float) -> bool:
+    def mock_wait(timeout: float | None = None) -> bool:
         nonlocal call_count
         call_count += 1
         if call_count > 5:
@@ -41,8 +42,8 @@ def test_skaven_flicker_breathe_runs_and_stops() -> None:
         with patch("skaven.lighting.time.time", side_effect=lambda: next(time_gen)):
             with patch("skaven.lighting.random.random", return_value=0.1):
                 with patch("skaven.lighting.random.randint", return_value=10):
-                    with patch.object(stop_event, "wait", side_effect=mock_wait):
-                        lighting_module.skaven_flicker_breathe(stop_event=stop_event)
+                    stop_event.wait = mock_wait
+                    lighting_module.skaven_flicker_breathe(stop_event=stop_event)
         # Use the mock_pixels object for assertions,
         # not the function references
         assert mock_pixels.show.call_count > 0
@@ -50,7 +51,9 @@ def test_skaven_flicker_breathe_runs_and_stops() -> None:
         assert mock_pixels.show.call_count >= 1
 
 
-def test_lighting_pin_selection_branches(monkeypatch: MonkeyPatch) -> None:
+def test_lighting_pin_selection_branches(
+    monkeypatch: MonkeyPatch, mock_led_button: MagicMock, mock_board_pins: MagicMock
+) -> None:
     """
     Test pin selection logic:
     - D18 == config.LED_PIN_BCM
@@ -110,12 +113,8 @@ def test_lighting_pin_selection_branches(monkeypatch: MonkeyPatch) -> None:
         sys.modules.pop("skaven.board", None)
 
 
-def test_skaven_flicker_breathe_finally_cleanup() -> None:
-    """
-    Test that the finally block in skaven_flicker_breathe is always
-    executed (cleanup).
-    """
-    stop_event = threading.Event()
+def test_skaven_flicker_breathe_finally_cleanup(dummy_event: MagicMock) -> None:
+    stop_event = dummy_event
     with patch("skaven.neopixel.NeoPixel", autospec=True) as mock_neopixel:
         mock_pixels = MagicMock()
         mock_pixels.__setitem__ = MagicMock()

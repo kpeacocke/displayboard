@@ -2,7 +2,10 @@ import pytest
 from skaven.neopixel import NeoPixel, GRB
 
 
-def test_neopixel_initialization() -> None:
+from typing import Any
+
+
+def test_neopixel_initialization(mock_neopixel: Any) -> None:
     # Test initialization of NeoPixel object
     pin = "D18"
     count = 10
@@ -15,7 +18,7 @@ def test_neopixel_initialization() -> None:
     assert isinstance(neopixel, NeoPixel)
 
 
-def test_neopixel_show() -> None:
+def test_neopixel_show(mock_neopixel: Any) -> None:
     # Test the show method (stubbed)
     neopixel = NeoPixel("D18", 10, 0.5, True, GRB)
     try:
@@ -24,7 +27,7 @@ def test_neopixel_show() -> None:
         pytest.fail(f"show() raised an exception: {e}")
 
 
-def test_neopixel_fill() -> None:
+def test_neopixel_fill(mock_neopixel: Any) -> None:
     # Test the fill method (stubbed)
     neopixel = NeoPixel("D18", 10, 0.5, True, GRB)
     color = (255, 0, 0)  # Red
@@ -34,7 +37,7 @@ def test_neopixel_fill() -> None:
         pytest.fail(f"fill() raised an exception: {e}")
 
 
-def test_neopixel_setitem() -> None:
+def test_neopixel_setitem(mock_neopixel: Any) -> None:
     # Test the __setitem__ method (stubbed)
     neopixel = NeoPixel("D18", 10, 0.5, True, GRB)
     index = 0
