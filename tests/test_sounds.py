@@ -70,33 +70,23 @@ def patch_random(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(main.random, "random", fake_random)
 
 
-# --- Original tests ---
-
-
-def test_list_audio_files(tmp_path: Path) -> None:
-    wav = tmp_path / "a.wav"
-    wav.write_text("dummy")
-    ogg = tmp_path / "b.ogg"
-    ogg.write_text("dummy")
-    mp3 = tmp_path / "c.mp3"
-    mp3.write_text("dummy")
-    txt = tmp_path / "d.txt"
-    txt.write_text("dummy")
-    # Use config directly now
-    found = main.list_audio_files(tmp_path)
+def test_list_audio_files(fs: Any) -> None:
+    fs.create_file("/tmp/a.wav", contents="dummy")
+    fs.create_file("/tmp/b.ogg", contents="dummy")
+    fs.create_file("/tmp/c.mp3", contents="dummy")
+    fs.create_file("/tmp/d.txt", contents="dummy")
+    found = main.list_audio_files(Path("/tmp"))
     exts = {p.suffix for p in found}
-    # Use config.AUDIO_EXTENSIONS for assertion
     assert exts == set(config.AUDIO_EXTENSIONS)
     paths = {p.name for p in found}
     assert paths == {"a.wav", "b.ogg", "c.mp3"}
 
 
-def test_load_sound_categories(tmp_path: Path) -> None:
+def test_load_sound_categories(fs: Any) -> None:
     categories = ["ambient", "rats", "chains", "screams", "skaven"]
     for cat in categories:
-        (tmp_path / cat).mkdir()
-        (tmp_path / cat / f"{cat[0]}.wav").touch()
-    cats = main.load_sound_categories(tmp_path)
+        fs.create_file(f"/tmp/{cat}/{cat[0]}.wav", contents="dummy")
+    cats = main.load_sound_categories(Path("/tmp"))
     assert set(cats) == set(categories)
     for cat in categories:
         assert len(cats[cat]) == 1
@@ -741,16 +731,16 @@ def test_main_keyboard_interrupt(
 
 @patch("skaven.sounds.logger")
 def test_main_no_sound_dir(
-    mock_logger: MagicMock, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    mock_logger: MagicMock, fs: Any, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     # Point config.SOUNDS_DIR to a non-existent directory
-    non_existent_path = tmp_path / "nonexistent_sounds"
+    non_existent_path = Path("/not/a/real/dir")
     monkeypatch.setattr(config, "SOUNDS_DIR", non_existent_path)
 
     # Pygame mocks handled by fixture
 
     # Patch Thread to check if loops are started
-    mock_thread_start = MagicMock()
+    mock_thread_start: MagicMock = MagicMock()
     monkeypatch.setattr(threading.Thread, "start", mock_thread_start)
 
     # Mock the main loop's wait to exit quickly

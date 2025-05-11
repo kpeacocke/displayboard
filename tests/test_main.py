@@ -234,6 +234,8 @@ def test_handle_shutdown_branches(
 ) -> None:
     """Covers handle_shutdown loop exit and wait branches using dummy_event."""
     # Use real parse_args for coverage
+    # Patch sys.argv to only include arguments that parse_args expects
+    monkeypatch.setattr(sys, "argv", ["skaven"])
     args = dispatcher.parse_args()
     mock_logger = MagicMock()
     monkeypatch.setattr(dispatcher, "_join_threads", lambda threads, logger: None)
@@ -246,12 +248,15 @@ def test_handle_shutdown_branches(
     dummy_event.clear()
     call_count = {"wait": 0}
 
+    # Force the no_video branch so stop_event.wait is called
+    args.no_video = True
+
     def fake_wait(timeout: Optional[float] = None) -> bool:
         call_count["wait"] += 1
         dummy_event.set()  # Exit after one call
-        return True  # Return True to indicate the event is set, breaking the loop
+        return True
 
-    monkeypatch.setattr(dummy_event, "wait", fake_wait)
+    dummy_event.wait = fake_wait  # type: ignore
     dispatcher.handle_shutdown([], dummy_event, mock_logger, args)
     assert call_count["wait"] == 1
 
