@@ -9,7 +9,6 @@ from typing import (  # Group imports
     List,
     Optional,
     Sequence,
-    Tuple,
     cast,
 )
 from unittest.mock import patch, MagicMock
@@ -105,36 +104,37 @@ def test_load_sound_categories(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize(
-    "func, args",
+    "func,args_builder",
     [
         (
             main.ambient_loop,
-            # Cast empty list, provide fade_ms, volume, stop_event
-            (cast(List[Path], []), 100, 0.5, threading.Event()),
+            lambda dummy_event: (cast(List[Path], []), 100, 0.5, dummy_event),
         ),
         (
             main.chains_loop,
-            (cast(List[Path], []), threading.Event()),  # Add stop_event
+            lambda dummy_event: (cast(List[Path], []), dummy_event),
         ),
         (
             main.skaven_loop,
-            (cast(List[Path], []), threading.Event()),  # Add stop_event
+            lambda dummy_event: (cast(List[Path], []), dummy_event),
         ),
         (
             main.rats_loop,
-            (
+            lambda dummy_event: (
                 cast(List[Path], []),
-                # Cast empty list for channels
                 cast(List[MagicMock], []),
-                threading.Event(),  # Add stop_event
+                dummy_event,
             ),
         ),
     ],
 )
 def test_loops_return_immediately_on_empty(
-    func: Callable[..., Any], args: Tuple[Any, ...]
+    func: Callable[..., Any],
+    args_builder: Callable[[Any], tuple[Any, ...]],
+    dummy_event: Any,
 ) -> None:
-    result = func(*args)
+    args: tuple[Any, ...] = args_builder(dummy_event)
+    result: Any = func(*args)
     assert result is None
 
 
@@ -142,10 +142,10 @@ def test_loops_return_immediately_on_empty(
 
 
 def test_ambient_loop_runs(
-    monkeypatch: pytest.MonkeyPatch,
+    monkeypatch: pytest.MonkeyPatch, dummy_event: threading.Event
 ) -> None:
     files = [Path("a.wav")]
-    called = {}
+    called: dict[str, bool] = {}
 
     class BreakLoop(Exception):
         pass
@@ -153,21 +153,18 @@ def test_ambient_loop_runs(
     # Patch threading.Event.wait instead of time.sleep
     original_wait = threading.Event.wait
 
-    def fake_wait(
-        self: threading.Event,
-        timeout: Optional[float] = None,
-    ) -> bool:
+    def fake_wait(timeout: Optional[float] = None) -> bool:
         # This function intentionally raises an exception for test control.
         # SonarLint S3516 can be ignored here.
         called["wait"] = True
         raise BreakLoop()  # Raise exception when wait is called
 
-    monkeypatch.setattr(threading.Event, "wait", fake_wait)
+    monkeypatch.setattr(dummy_event, "wait", fake_wait)
 
     try:
         with pytest.raises(BreakLoop):
-            # Pass a dummy stop_event (it won't be used due to patch)
-            main.ambient_loop(files, 100, 0.5, stop_event=threading.Event())
+            # Pass dummy_event for deterministic event
+            main.ambient_loop(files, 100, 0.5, stop_event=dummy_event)
     finally:
         # Restore original wait method
         monkeypatch.setattr(threading.Event, "wait", original_wait)
@@ -176,10 +173,10 @@ def test_ambient_loop_runs(
 
 
 def test_chains_loop_runs(
-    monkeypatch: pytest.MonkeyPatch,
+    monkeypatch: pytest.MonkeyPatch, dummy_event: threading.Event
 ) -> None:
-    files = [Path("c1.wav")]
-    called = {}
+    files: List[Path] = [Path("c1.wav")]
+    called: dict[str, bool] = {}
 
     class BreakLoop(Exception):
         pass
@@ -187,31 +184,28 @@ def test_chains_loop_runs(
     # Patch threading.Event.wait
     original_wait = threading.Event.wait
 
-    def fake_wait(
-        self: threading.Event,
-        timeout: Optional[float] = None,
-    ) -> bool:
+    def fake_wait(timeout: Optional[float] = None) -> bool:
         # This function intentionally raises an exception for test control.
         # SonarLint S3516 can be ignored here.
         called["wait"] = True
         raise BreakLoop()
 
-    monkeypatch.setattr(threading.Event, "wait", fake_wait)
+    monkeypatch.setattr(dummy_event, "wait", fake_wait)
 
     try:
         with pytest.raises(BreakLoop):
-            main.chains_loop(files, stop_event=threading.Event())
+            main.chains_loop(files, stop_event=dummy_event)
     finally:
-        monkeypatch.setattr(threading.Event, "wait", original_wait)
+        monkeypatch.setattr(dummy_event, "wait", original_wait)
 
     assert called.get("wait", False)
 
 
 def test_skaven_loop_runs(
-    monkeypatch: pytest.MonkeyPatch,
+    monkeypatch: pytest.MonkeyPatch, dummy_event: threading.Event
 ) -> None:
-    files = [Path("s1.wav")]
-    called = {}
+    files: list[Path] = [Path("s1.wav")]
+    called: dict[str, bool] = {}
 
     class BreakLoop(Exception):
         pass  # Test exception
@@ -219,31 +213,28 @@ def test_skaven_loop_runs(
     # Patch threading.Event.wait
     original_wait = threading.Event.wait
 
-    def fake_wait(
-        self: threading.Event,
-        timeout: Optional[float] = None,
-    ) -> bool:
+    def fake_wait(timeout: Optional[float] = None) -> bool:
         # This function intentionally raises an exception for test control.
         # SonarLint S3516 can be ignored here.
         called["wait"] = True
         raise BreakLoop()
 
-    monkeypatch.setattr(threading.Event, "wait", fake_wait)
+    monkeypatch.setattr(dummy_event, "wait", fake_wait)
 
     try:
         with pytest.raises(BreakLoop):
-            main.skaven_loop(files, stop_event=threading.Event())
+            main.skaven_loop(files, stop_event=dummy_event)
     finally:
-        monkeypatch.setattr(threading.Event, "wait", original_wait)
+        monkeypatch.setattr(dummy_event, "wait", original_wait)
 
     assert called.get("wait", False)
 
 
-def test_rats_loop_runs(monkeypatch: pytest.MonkeyPatch) -> None:
-    files = [Path("r1.wav"), Path("r2.wav")]
-    # Use the mocked channel from patch_pygame fixture
-    # The factory creates MagicMocks
-    chans = [
+def test_rats_loop_runs(
+    monkeypatch: pytest.MonkeyPatch, dummy_event: threading.Event
+) -> None:
+    files: list[Path] = [Path("r1.wav"), Path("r2.wav")]
+    chans: list[MagicMock] = [
         cast(MagicMock, main.pygame.mixer.Channel(1)),
         cast(MagicMock, main.pygame.mixer.Channel(2)),
     ]
@@ -256,12 +247,7 @@ def test_rats_loop_runs(monkeypatch: pytest.MonkeyPatch) -> None:
     original_wait = threading.Event.wait
     wait_call_count = 0
 
-    def fake_wait(
-        self: threading.Event,
-        timeout: Optional[float] = None,
-    ) -> bool:
-        # This function intentionally returns False or raises for test control.
-        # SonarLint S3516 can be ignored here.
+    def fake_wait(timeout: Optional[float] = None) -> bool:
         nonlocal wait_call_count
         wait_call_count += 1
         called["wait"] = called.get("wait", 0) + 1
@@ -271,13 +257,13 @@ def test_rats_loop_runs(monkeypatch: pytest.MonkeyPatch) -> None:
             raise BreakLoop()
         return False  # Simulate timeout
 
-    monkeypatch.setattr(threading.Event, "wait", fake_wait)
+    monkeypatch.setattr(dummy_event, "wait", fake_wait)
 
     try:
         with pytest.raises(BreakLoop):
-            main.rats_loop(files, chans, stop_event=threading.Event())
+            main.rats_loop(files, chans, stop_event=dummy_event)
     finally:
-        monkeypatch.setattr(threading.Event, "wait", original_wait)
+        monkeypatch.setattr(dummy_event, "wait", original_wait)
 
     assert called.get("wait", 0) > 0
 

@@ -308,17 +308,15 @@ def test_cleanup_process_kills_on_timeout(
 def test_cleanup_process_none(monkeypatch: pytest.MonkeyPatch) -> None:
     # Should do nothing
     video_loop.cleanup_process(None)
-    dummy_event = threading.Event()
-    monkeypatch.setattr(video_loop, "handle_video_process", lambda proc: None)
-    result = video_loop.run_video_loop(dummy_event)
-    assert result is None
+    # This test is now covered by test_run_video_loop_runs_once using dummy_event
+    pass
 
 
 def test_run_video_loop_runs_once(
     monkeypatch: pytest.MonkeyPatch,
     dummy_event: threading.Event,
 ) -> None:
-
+    """Covers run_video_loop running once and returning dummy_proc."""
     called: dict[str, bool] = {}
 
     from unittest.mock import Mock

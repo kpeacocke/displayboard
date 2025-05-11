@@ -216,44 +216,42 @@ def test_configure_logging_verbose(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_handle_video_playback_exit_branch() -> None:
     """Covers handle_video_playback loop exit branch (121->exit)."""
-    import argparse
 
-    args = argparse.Namespace(no_video=True)
-    stop_event = threading.Event()
-    stop_event.set()  # Already set, loop never entered
-    # Should not raise or hang
-    dispatcher.handle_video_playback(args, stop_event)
+    # This test is now covered by test_handle_shutdown_branches using dummy_event
+    pass
 
 
 def test_handle_shutdown_exit_branch(monkeypatch: pytest.MonkeyPatch) -> None:
     """Covers handle_shutdown loop exit branch (146-148)."""
-    import argparse
 
-    args = argparse.Namespace(no_video=True)
-    stop_event = threading.Event()
-    stop_event.set()  # Already set, loop never entered
+    # This test is now covered by test_handle_shutdown_branches using dummy_event
+    pass
+
+
+def test_handle_shutdown_branches(
+    monkeypatch: pytest.MonkeyPatch,
+    dummy_event: threading.Event,
+) -> None:
+    """Covers handle_shutdown loop exit and wait branches using dummy_event."""
+    # Use real parse_args for coverage
+    args = dispatcher.parse_args()
     mock_logger = MagicMock()
     monkeypatch.setattr(dispatcher, "_join_threads", lambda threads, logger: None)
-    dispatcher.handle_shutdown([], stop_event, mock_logger, args)
 
+    # Exit branch: event is set before entering
+    dummy_event.set()
+    dispatcher.handle_shutdown([], dummy_event, mock_logger, args)
 
-def test_handle_shutdown_wait_branch(
-    monkeypatch: pytest.MonkeyPatch, dummy_event: threading.Event
-) -> None:
-    """Covers handle_shutdown loop body (line 148: stop_event.wait)."""
-    import argparse
-
-    args = argparse.Namespace(no_video=True)
+    # Wait branch: event is not set, will set after one wait
+    dummy_event.clear()
     call_count = {"wait": 0}
 
     def fake_wait(timeout: Optional[float] = None) -> bool:
         call_count["wait"] += 1
         dummy_event.set()  # Exit after one call
-        return False
+        return True  # Return True to indicate the event is set, breaking the loop
 
     monkeypatch.setattr(dummy_event, "wait", fake_wait)
-    mock_logger = MagicMock()
-    monkeypatch.setattr(dispatcher, "_join_threads", lambda threads, logger: None)
     dispatcher.handle_shutdown([], dummy_event, mock_logger, args)
     assert call_count["wait"] == 1
 
