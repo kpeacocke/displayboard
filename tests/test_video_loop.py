@@ -1,3 +1,4 @@
+from typing import Optional
 import sys
 import types
 import pytest
@@ -293,7 +294,7 @@ def test_cleanup_process_kills_on_timeout(
     def terminate() -> None:
         pass
 
-    def wait(timeout: float | None = None) -> None:
+    def wait(timeout: Optional[float] = None) -> None:
         raise subprocess.TimeoutExpired(cmd="mpv", timeout=1)
 
     def kill() -> None:

@@ -1,3 +1,4 @@
+from typing import Optional
 import pytest
 import sys
 import importlib
@@ -28,7 +29,7 @@ def test_skaven_flicker_breathe_runs_and_stops(
     time_gen = time_generator()
     call_count = 0
 
-    def mock_wait(timeout: float | None = None) -> bool:
+    def mock_wait(timeout: Optional[float] = None) -> bool:
         nonlocal call_count
         call_count += 1
         if call_count > 5:

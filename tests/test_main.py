@@ -78,7 +78,7 @@ def test_main_join_threads_attribute_and_runtime() -> None:
             super().__init__()
             self.name = "BadJoinThread"
 
-        def join(self, timeout: float | None = None) -> None:
+        def join(self, timeout: Optional[float] = None) -> None:
             raise RuntimeError("fail")
 
     dispatcher._join_threads([NoJoin(), BadJoin()], mock_logger)
@@ -323,7 +323,7 @@ def test_join_threads_debug(monkeypatch: pytest.MonkeyPatch) -> None:
             super().__init__()
             self.name = "GoodJoinObj"
 
-        def join(self, timeout: float | None = None) -> None:
+        def join(self, timeout: Optional[float] = None) -> None:
             pass
 
     good_join_obj: threading.Thread = GoodJoinObj()

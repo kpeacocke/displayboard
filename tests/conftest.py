@@ -1,3 +1,4 @@
+from typing import Optional
 import sys
 import os
 import types
@@ -59,11 +60,11 @@ class DummyServoMinimal(DummyServo):
         self.history = []
 
     @property
-    def value(self) -> float | None:
+    def value(self) -> Optional[float]:
         raise Exception("move fail minimal")
 
     @value.setter
-    def value(self, val: float | None) -> None:
+    def value(self, val: Optional[float]) -> None:
         raise Exception("move fail minimal")
 
     def mid(self) -> None:
@@ -82,11 +83,11 @@ class DummyServoWithFailMid(DummyServo):
         raise RuntimeError("mid fail")
 
     @property
-    def value(self) -> float | None:
+    def value(self) -> Optional[float]:
         raise Exception("move fail")
 
     @value.setter
-    def value(self, val: float | None) -> None:
+    def value(self, val: Optional[float]) -> None:
         raise Exception("move fail")
 
 
@@ -99,11 +100,11 @@ class DummyServoDoubleFail(DummyServo):
         self.history = []
 
     @property
-    def value(self) -> float | None:
+    def value(self) -> Optional[float]:
         raise Exception("move fail")
 
     @value.setter
-    def value(self, val: float | None) -> None:
+    def value(self, val: Optional[float]) -> None:
         raise Exception("move fail")
 
     def mid(self) -> None:
