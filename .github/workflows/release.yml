@@ -51,6 +51,7 @@ jobs:
         run: |
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
+
       - name: Bump tag and push
         id: tagger
         run: |
@@ -65,6 +66,7 @@ jobs:
           else
             next_tag="v0.1.0"
           fi
+          echo "Next tag: $next_tag"
           git tag "$next_tag"
           git push origin "$next_tag"
           echo "tag=$next_tag" >> $GITHUB_OUTPUT
