@@ -11,7 +11,7 @@ jobs:
       - name: Fail if branch name doesn't match GitFlow
         run: |
           echo "Checking branch name: ${{ github.head_ref }}"
-          if [[ ! "${{ github.head_ref }}" =~ ^(feature|fix|hotfix|release)/.+$ ]]; then
+          if [[ ! "${{ github.head_ref }}" =~ ^(feature|fix|hotfix|release|dependabot)/.+$ ]]; then
             echo "❌ Branch name '${{ github.head_ref }}' doesn't follow GitFlow (feature/*, fix/*, hotfix/*, release/*)"
             exit 1
           fi
