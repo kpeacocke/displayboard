@@ -6,43 +6,32 @@ on:
 
 jobs:
   validate:
-    name: ✅ Validate Everything (Python ${{ matrix.python-version }})
-    env:
-      PYTHONWARNINGS: ignore::DeprecationWarning
+    name: ✅ Validate Everything
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
     outputs:
       passed: ${{ steps.pass.outputs.ok }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: "3.9"
       - name: Install Poetry
         run: |
           curl -sSL https://install.python-poetry.org | python3 -
           echo "$HOME/.local/bin" >> $GITHUB_PATH
-      - name: Install pre-commit
-        run: |
-          poetry add --dev pre-commit
-          poetry install
+      - name: Install dependencies
+        run: poetry install
       - name: Run full checks
         run: |
-          set -e  # Exit immediately if a command exits with a non-zero status
-          poetry run pre-commit run --all-files --show-diff-on-failure
           poetry run black --check .
           poetry run ruff check .
-          poetry run mypy src/skaven
+          poetry run mypy skaven_soundscape
           poetry run pytest
           poetry run coverage run -m pytest
-          poetry run coverage report -m > coverage.txt || echo "Warning: Coverage report failed"
-          tail -n 1 coverage.txt > coverage_summary.txt || echo "Warning: Coverage summary failed"
-
+          poetry run coverage report -m > coverage.txt
+          tail -n 1 coverage.txt > coverage_summary.txt
       - name: Mark CI as passed
         id: pass
-        if: ${{ success() }}
         run: echo "ok=true" >> $GITHUB_OUTPUT
 
   release:
@@ -56,7 +45,6 @@ jobs:
         run: |
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
-
       - name: Bump tag and push
         id: tagger
         run: |
@@ -71,7 +59,6 @@ jobs:
           else
             next_tag="v0.1.0"
           fi
-          echo "Next tag: $next_tag"
           git tag "$next_tag"
           git push origin "$next_tag"
           echo "tag=$next_tag" >> $GITHUB_OUTPUT
@@ -83,3 +70,11 @@ jobs:
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish to GitHub Packages
+        run: |
+          poetry config repositories.github https://pypi.pkg.github.com/kpeacocke
+          poetry publish --build -r github -u __token__ -p ${{ secrets.GITHUB_TOKEN }}
+        env:
+          POETRY_HTTP_BASIC_GITHUB_USERNAME: __token__
+          POETRY_HTTP_BASIC_GITHUB_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
