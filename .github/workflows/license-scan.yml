@@ -1,0 +1,19 @@
+name: License Scan
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  license-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Scan for licenses
+        uses: pilosus/action-license-checker@v1
+        with:
+          path: .
+          fail_on: restricted
+          output_format: table
