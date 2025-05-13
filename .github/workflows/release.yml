@@ -7,6 +7,8 @@ on:
 jobs:
   validate:
     name: ✅ Validate Everything (Python ${{ matrix.python-version }})
+    env:
+      PYTHONWARNINGS: ignore::DeprecationWarning
     runs-on: ubuntu-latest
     strategy:
       matrix:
