@@ -23,6 +23,7 @@ jobs:
         run: poetry install
       - name: Run full checks
         run: |
+          poetry run pre-commit run --all-files --show-diff-on-failure
           poetry run black --check .
           poetry run ruff check .
           poetry run mypy src/skaven
