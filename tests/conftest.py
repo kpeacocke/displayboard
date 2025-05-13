@@ -5,7 +5,7 @@ import pytest
 import threading
 import time
 import random
-from typing import Any, Callable
+from typing import Any, Callable, Union
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(__file__))
 SRC_DIR = os.path.join(PROJECT_ROOT, "src")
@@ -19,14 +19,20 @@ class DummyServo:
         self.closed = False
         self.detach_called = False
         self.history: list[Any] = []
-        self._value: float | None = None
+        self._value: Union[float, None] = (
+            None  # Replace `float | None` with `Union[float, None]`
+        )
 
     @property
-    def value(self) -> float | None:
+    def value(
+        self,
+    ) -> Union[float, None]:  # Replace `float | None` with `Union[float, None]`
         return self._value
 
     @value.setter
-    def value(self, val: float | None) -> None:
+    def value(
+        self, val: Union[float, None]
+    ) -> None:  # Replace `float | None` with `Union[float, None]`
         self._value = val
 
     def mid(self) -> None:
