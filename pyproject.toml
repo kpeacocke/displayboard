@@ -71,6 +71,3 @@ markers = [
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
-
-[tool.poetry.repositories]
-github = { url = "https://pypi.pkg.github.com/kpeacocke" }
