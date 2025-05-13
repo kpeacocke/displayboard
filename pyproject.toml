@@ -1,5 +1,5 @@
-line-length = 100
-[tool.poetry]
+
+[project]
 name = "skaven-displayboard"
 version = "0.1.0"
 description = "A randomized soundscape engine for Warhammer Age of Sigmar Skaven-themed displays"
@@ -15,7 +15,8 @@ include = [
   "src/assets/video/**",
 ]
 
-[tool.poetry.dependencies]
+
+[project.dependencies]
 python = "^3.9"
 pygame = "^2.5.2"
 python-dotenv = "^1.1.0"
@@ -25,7 +26,8 @@ gpiozero = "^2.0.1"  # GPIO control via gpiozero
 pigpio = "^1.78"
 
 
-[tool.poetry.group.dev.dependencies]
+
+[project.optional-dependencies.dev]
 pytest = "^8.3.5"
 coverage = "^7.8.0"
 mypy = "^1.15.0"
@@ -35,7 +37,8 @@ pre-commit = "^4.2.0"
 pytest-cov = "^6.1.1"
 pyfakefs = "^5.8.0"
 
-[tool.poetry.scripts]
+
+[project.scripts]
 play-video = "skaven.video_loop:main"  # ✅ CLI entry point updated for new package
 skaven = "skaven.main:main"  # Main CLI entry point
 
