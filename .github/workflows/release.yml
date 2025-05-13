@@ -7,6 +7,8 @@ on:
 jobs:
   validate:
     name: ✅ Validate Everything
+    env:
+      PYTHONWARNINGS: ignore::DeprecationWarning
     runs-on: ubuntu-latest
     outputs:
       passed: ${{ steps.pass.outputs.ok }}
