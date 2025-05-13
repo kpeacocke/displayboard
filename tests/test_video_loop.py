@@ -41,7 +41,7 @@ def test_check_mpv_installed_linux_not_installed(
         "exit",
         lambda code=1: (_ for _ in ()).throw(SystemExit(code)),
     )
-    if platform_name == "Linux":
+    if platform_name in ("Linux", "Darwin"):
         with pytest.raises(SystemExit):
             video_loop.check_mpv_installed()
     else:

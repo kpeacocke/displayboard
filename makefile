@@ -20,13 +20,13 @@ run:  ## Run the main application
 test:  ## Run all tests
 	$(POETRY) run pytest
 
+
 coverage:  ## Run tests with coverage and show report
-	$(POETRY) run coverage run -m pytest
-	$(POETRY) run coverage report -m
+	PYTHONPATH=src $(POETRY) run pytest --cov=skaven --cov-report=term-missing
+
 
 coverage-html:  ## Generate and open HTML coverage report
-	$(POETRY) run coverage run -m pytest
-	$(POETRY) run coverage html
+	PYTHONPATH=src $(POETRY) run pytest --cov=skaven --cov-report=html
 	@if command -v open > /dev/null; then open htmlcov/index.html; \
 	elif command -v xdg-open > /dev/null; then xdg-open htmlcov/index.html; fi
 

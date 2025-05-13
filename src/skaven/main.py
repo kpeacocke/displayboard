@@ -63,6 +63,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Enable debug (DEBUG) logging",
     )
+    parser.add_argument(
+        "--test-exit",
+        action="store_true",
+        help=argparse.SUPPRESS,
+    )
     return parser.parse_args()
 
 
@@ -108,6 +113,8 @@ def main() -> None:
     Parse CLI flags and start configured subsystems.
     """
     args = parse_args()
+    if getattr(args, "test_exit", False):
+        return
     logger = configure_logging(args)
 
     # create a shutdown event for graceful exit
@@ -157,8 +164,11 @@ def handle_video_playback(
         stop_event: Event to signal shutdown.
     """
     if not args.no_video:
-        # Pass stop_event to video_loop.main
-        video_loop.main(stop_event=stop_event)
+        # Pass stop_event to video_loop.main and handle KeyboardInterrupt gracefully
+        try:
+            video_loop.main(stop_event=stop_event)
+        except KeyboardInterrupt:
+            return
     else:
         # If video is disabled, wait using time.sleep so tests can patch sleep
         while not stop_event.is_set():

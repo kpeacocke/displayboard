@@ -41,7 +41,7 @@ skaven = "skaven.main:main"  # Main CLI entry point
 
 [tool.coverage.run]
 branch = true
-source = ["skaven"]
+source = ["src/skaven"]
 
 [tool.coverage.report]
 show_missing = true
@@ -62,6 +62,11 @@ max-line-length = 100
 extend-ignore = ["E203", "W503"]
 target-version = "py39"
 fix = true
+
+[tool.pytest.ini_options]
+markers = [
+    "no_autosleep: disables the patch_time_sleep fixture for this test"
+]
 
 [build-system]
 requires = ["poetry-core"]

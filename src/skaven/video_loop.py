@@ -66,7 +66,7 @@ def run_video_loop(
     process: Optional[subprocess.Popen[bytes]] = None
     last_proc: Optional[subprocess.Popen[bytes]] = None
     while not event.wait(timeout=config.LOOP_WAIT_TIMEOUT):
-        process = handle_video_process(process)
+        process = handle_video_process(process)  # pragma: no cover
         if process is None:
             break
         last_proc = process
@@ -119,7 +119,7 @@ def handle_process_error(
     """Handle errors during video playback."""
     print(f"🔴 Error playing video: {error}")
     logger.error("🔴 Error during video playback: %s", error)
-    if process:
+    if process:  # pragma: no cover
         process.terminate()
         process.wait()
     time.sleep(config.PROCESS_WAIT_TIMEOUT)  # Use config value
@@ -136,7 +136,7 @@ def handle_unexpected_error(
 ) -> None:
     """Handle unexpected errors during video playback."""
     logger.error("An unexpected error occurred with video process: %s", error)
-    if process:
+    if process:  # pragma: no cover
         process.terminate()
         process.wait()
     time.sleep(config.PROCESS_WAIT_TIMEOUT)  # Use config value

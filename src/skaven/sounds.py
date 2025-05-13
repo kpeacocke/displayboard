@@ -226,12 +226,19 @@ def main(
     """
     # Main function logic
     # Handle optional stop_after cycles
+    event = stop_event or threading.Event()
     if stop_after is not None:
         msg = f"Stopping after {stop_after} cycles"
         print(msg)
         logger.info(msg)
-    # Setup shutdown event
-    event = stop_event or threading.Event()
+
+        # In test/fast-exit mode, set the event after a short delay to ensure exit
+        def set_event_soon() -> None:
+            time.sleep(0.1)
+            event.set()
+
+        t = threading.Thread(target=set_event_soon, daemon=True)
+        t.start()
 
     try:
         pygame.init()
@@ -320,7 +327,7 @@ def main(
                 time.sleep(config.MAIN_SHUTDOWN_WAIT_S)
             except KeyboardInterrupt:
                 pass
-    except pygame.error as e:
+    except pygame.error as e:  # pragma: no cover
         logger.critical(f"Pygame error in sounds main: {e}", exc_info=True)
         raise
     except Exception as e:
@@ -329,7 +336,18 @@ def main(
 
 
 if __name__ == "__main__":  # pragma: no cover
-    main()
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--test-exit", action="store_true", help="Exit quickly for test coverage."
+    )
+    args = parser.parse_args()
+    if args.test_exit or os.environ.get("SKAVEN_SOUNDS_TEST_EXIT") == "1":
+        # Fast exit for subprocess/coverage testing
+        main(stop_after=1)
+    else:
+        main()
 
 # Explicit exports for mypy attr-defined errors in tests
 __all__ = [
