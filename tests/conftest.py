@@ -173,7 +173,7 @@ def dummy_event() -> threading.Event:
         def is_set(self) -> bool:
             return self._is_set
 
-        def wait(self, timeout: float | None = None) -> bool:
+        def wait(self, timeout: Optional[float] = None) -> bool:
             self.wait_calls += 1
             return self.wait_return_value
 
