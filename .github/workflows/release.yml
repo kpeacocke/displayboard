@@ -21,6 +21,8 @@ jobs:
           echo "$HOME/.local/bin" >> $GITHUB_PATH
       - name: Install dependencies
         run: poetry install
+      - name: Verify Poetry Dependencies
+        run: poetry check
       - name: Run full checks
         run: |
           poetry run black --check .
@@ -32,7 +34,8 @@ jobs:
           tail -n 1 coverage.txt > coverage_summary.txt
       - name: Mark CI as passed
         id: pass
-        run: echo "ok=true" >> $GITHUB_OUTPUT
+        run: |
+          echo "ok=true" >> $GITHUB_OUTPUT || exit 1
 
   release:
     name: 📦 Tag and Release
