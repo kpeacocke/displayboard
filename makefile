@@ -1,7 +1,7 @@
 .PHONY: \
-	install run test coverage lint format check all coverage-html commit-clean \
-	precommit-install precommit-run apply-ruleset-main apply-ruleset-develop \
-	clean help package
+	install run run-dev test coverage lint format check all coverage-html commit-clean \
+	precommit-install precommit-run clean clean-pyc distclean build help package \
+	launch check-coverage release
 
 .DEFAULT_GOAL := help
 
@@ -14,21 +14,27 @@ help:  ## Show this help message
 install:  ## Install dependencies using Poetry
 	$(POETRY) install
 
-run:  ## Run the main application
+run:  ## Run main application
+	@echo "Running main application..."
+	$(PYTHON) -m skaven.main
+
+run-dev:  ## Run the main application in development mode
+	@echo "Running main application in development mode..."
 	$(PYTHON) -m skaven.main
 
 test:  ## Run all tests
 	$(POETRY) run pytest
 
-
 coverage:  ## Run tests with coverage and show report
 	PYTHONPATH=src $(POETRY) run pytest --cov=skaven --cov-report=term-missing
-
 
 coverage-html:  ## Generate and open HTML coverage report
 	PYTHONPATH=src $(POETRY) run pytest --cov=skaven --cov-report=html
 	@if command -v open > /dev/null; then open htmlcov/index.html; \
 	elif command -v xdg-open > /dev/null; then xdg-open htmlcov/index.html; fi
+
+check-coverage:  ## Fail if coverage is below 80%
+	PYTHONPATH=src $(POETRY) run pytest --cov=skaven --cov-fail-under=80
 
 lint:  ## Run ruff, mypy, and black --check
 	$(POETRY) run ruff check .
@@ -45,6 +51,7 @@ check:  ## Run tests, coverage, and lint
 	$(MAKE) lint
 
 commit-clean: format lint test  ## Format, lint, test, and commit
+	@echo "Formatting, linting, testing, and committing..."
 	git add .
 	git commit -m "chore: format, lint, and test passed"
 
@@ -62,33 +69,23 @@ clean:  ## Remove build, test, and coverage artifacts
 	rm -rf .pytest_cache .mypy_cache htmlcov dist build *.egg-info
 	find . -name '*.pyc' -delete
 
-# === Ruleset automation ===
+clean-pyc:  ## Remove Python file artifacts
+	find . -name '*.pyc' -delete
+	find . -name '*.pyo' -delete
+	find . -name '__pycache__' -type d -exec rm -rf {} +
 
-GITHUB_TOKEN ?= $(shell grep GITHUB_TOKEN .secrets.env | cut -d '=' -f2)
-REPO_NAME ?= skaven-soundscape
-REPO_OWNER ?= kpeacocke
+distclean: clean clean-pyc  ## Remove all build, test, coverage, and venv artifacts
+	rm -rf .venv venv
 
-apply-ruleset-main:  ## Apply main ruleset to GitHub repo
-	@if [ -z "$(GITHUB_TOKEN)" ]; then \
-		echo "GITHUB_TOKEN not set!"; exit 1; \
-	fi
-	@echo "Applying ruleset-main.json to $(REPO_OWNER)/$(REPO_NAME)"
-	curl -X POST \
-		-H "Authorization: Bearer $(GITHUB_TOKEN)" \
-		-H "Accept: application/vnd.github+json" \
-		https://api.github.com/repos/$(REPO_OWNER)/$(REPO_NAME)/rulesets \
-		-d @rulesets/ruleset-main.json
+build:  ## Build the package (alias for package)
+	$(MAKE) package
 
-apply-ruleset-develop:  ## Apply develop ruleset to GitHub repo
-	@if [ -z "$(GITHUB_TOKEN)" ]; then \
-		echo "GITHUB_TOKEN not set!"; exit 1; \
-	fi
-	@echo "Applying ruleset-develop.json to $(REPO_OWNER)/$(REPO_NAME)"
-	curl -X POST \
-		-H "Authorization: Bearer $(GITHUB_TOKEN)" \
-		-H "Accept: application/vnd.github+json" \
-		https://api.github.com/repos/$(REPO_OWNER)/$(REPO_NAME)/rulesets \
-		-d @rulesets/ruleset-develop.json
+launch:  ## launch the package (alias for run)
+	$(MAKE) run
 
 package:  ## Build the package with Poetry
 	$(POETRY) build
+
+release:  ## Build and publish to PyPI
+	$(POETRY) build
+	$(POETRY) publish
