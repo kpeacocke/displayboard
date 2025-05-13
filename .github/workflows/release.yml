@@ -24,6 +24,10 @@ jobs:
         run: |
           curl -sSL https://install.python-poetry.org | python3 -
           echo "$HOME/.local/bin" >> $GITHUB_PATH
+      - name: Install pre-commit
+        run: |
+          poetry add --dev pre-commit
+          poetry install
       - name: Run full checks
         run: |
           set -e  # Exit immediately if a command exits with a non-zero status
