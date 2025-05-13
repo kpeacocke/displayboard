@@ -12,8 +12,4 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Scan for licenses
-        uses: pilosus/action-license-checker@v1
-        with:
-          path: .
-          fail_on: restricted
-          output_format: table
+        uses: Steffen911/license-checker-action@0.1.0
