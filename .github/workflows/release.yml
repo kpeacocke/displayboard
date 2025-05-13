@@ -87,7 +87,7 @@ jobs:
 
       - name: Publish to GitHub Packages
         run: |
-          poetry config repositories.github https://pypi.pkg.github.com/kpeacocke
+          poetry config repositories.github https://pypi.pkg.github.com/kpeacocke/skaven
           poetry publish --build -r github -u __token__ -p ${{ secrets.GITHUB_TOKEN }}
         env:
           POETRY_HTTP_BASIC_GITHUB_USERNAME: __token__

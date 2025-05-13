@@ -1,7 +1,7 @@
 
 
 [tool.poetry]
-name = "skaven-displayboard"
+name = "skaven"
 version = "0.1.0"
 description = "A randomized soundscape engine for Warhammer Age of Sigmar Skaven-themed displays"
 authors = ["Kristian Peacocke <krpeacocke@gmail.com>"]
