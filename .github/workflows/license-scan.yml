@@ -1,4 +1,4 @@
-name: License Scan
+name: License Scan (Python)
 
 on:
   push:
@@ -11,5 +11,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Scan for licenses
-        uses: Steffen911/license-checker-action@0.1.0
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: |
+          pip install pip-licenses
+          pip install -r requirements.txt || true
+          pip install poetry && poetry install || true
+      - name: Generate license report
+        run: |
+          pip-licenses --format=markdown --output-file=THIRD_PARTY_LICENSES.md
+      - name: Upload license report
+        uses: actions/upload-artifact@v4
+        with:
+          name: third-party-licenses
+          path: THIRD_PARTY_LICENSES.md
