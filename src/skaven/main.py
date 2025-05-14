@@ -19,7 +19,7 @@ import threading
 import logging
 import time  # Added for sleep in video-disabled loop
 
-from skaven import sounds, video_loop, lighting
+from skaven import sounds, video_loop, lighting, bell
 from . import config  # Import config
 
 __all__ = ["sounds", "video_loop", "lighting", "parse_args", "main"]
@@ -35,6 +35,11 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog="skaven",
         description="Skaven soundscape + video + lighting controller",
+    )
+    parser.add_argument(
+        "--no-bell",
+        action="store_true",
+        help="Disable bell servo",
     )
     parser.add_argument(
         "--no-sounds",
@@ -105,6 +110,15 @@ def start_threads(
         threads.append(t)
         t.start()
 
+    if not args.no_bell:
+        t = threading.Thread(
+            target=bell.main,
+            name="BellThread",
+            daemon=False,
+            args=(stop_event,),
+        )
+        threads.append(t)
+        t.start()
     return threads
 
 

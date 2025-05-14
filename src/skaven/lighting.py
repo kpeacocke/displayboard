@@ -33,24 +33,8 @@ from skaven.neopixel import NeoPixel  # Removed unused GRB import
 logger = logging.getLogger(__name__)
 
 
-# --- Setup ---
-# LED_COUNT = 30  # Number of LEDs - Moved to config
-# LED_PIN = D18  # GPIO18 (Pin 12) - Moved to config
-# BRIGHTNESS = 0.4 - Moved to config
-# ORDER = GRB  # LED color order - Moved to config
-
-
-# Robust pin selection: use D18 if available and matches config, else fallback
-if _has_d18 and D18 == config.LED_PIN_BCM:
-    led_pin_to_use = D18
-else:
-    if _has_d18:
-        logger.warning(
-            "board.D18 does not match config.LED_PIN_BCM, using config value."
-        )
-    else:
-        logger.warning("board.D18 not found, using config.LED_PIN_BCM.")
-    led_pin_to_use = config.LED_PIN_BCM
+# Lighting now always uses config.LED_PIN_BCM (default: 21). Pin 18 is reserved for bell.
+led_pin_to_use = config.LED_PIN_BCM
 
 pixels = NeoPixel(
     led_pin_to_use,  # Use determined pin

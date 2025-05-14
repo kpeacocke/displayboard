@@ -161,6 +161,7 @@ def test_parse_args_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
     assert not args.no_sounds
     assert not args.no_video
     assert not args.no_lighting
+    assert not args.no_bell
 
 
 def test_configure_logging_debug(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -408,29 +409,50 @@ def test_main_py_entry_subprocess() -> None:
 
 
 @pytest.mark.parametrize(
-    "no_sounds,no_lighting,expected_sounds,expected_lighting,expected_len",
+    "no_sounds,no_lighting,no_bell,expected_sounds,expected_lighting,expected_bell,expected_len",
     [
-        (False, False, 1, 1, 2),
-        (True, False, 0, 1, 1),
-        (False, True, 1, 0, 1),
-        (True, True, 0, 0, 0),
+        (False, False, False, 1, 1, 1, 3),
+        (True, False, False, 0, 1, 1, 2),
+        (False, True, False, 1, 0, 1, 2),
+        (True, True, False, 0, 0, 1, 1),
+        (False, False, True, 1, 1, 0, 2),
+        (True, False, True, 0, 1, 0, 1),
+        (False, True, True, 1, 0, 0, 1),
+        (True, True, True, 0, 0, 0, 0),
     ],
 )
 def test_start_threads_calls(
     patch_threads_and_calls: dict[str, Any],
     no_sounds: bool,
     no_lighting: bool,
+    no_bell: bool,
     expected_sounds: int,
     expected_lighting: int,
+    expected_bell: int,
     expected_len: int,
 ) -> None:
-    """Covers start_threads enabling/disabling sound and lighting threads."""
-    args = argparse.Namespace(no_sounds=no_sounds, no_lighting=no_lighting)
+    """Covers start_threads enabling/disabling sound, lighting, and bell threads."""
+    # Patch bell.main to increment a counter
+    import skaven.bell
+
+    bell_calls = {"bell": 0}
+    orig_bell_main = skaven.bell.main
+
+    def fake_bell_main(stop_event: Optional[Any] = None) -> None:
+        bell_calls["bell"] += 1
+
+    skaven.bell.main = fake_bell_main
+
+    args = argparse.Namespace(
+        no_sounds=no_sounds, no_lighting=no_lighting, no_bell=no_bell
+    )
     stop_event = threading.Event()
     threads = dispatcher.start_threads(args, stop_event)
     assert len(threads) == expected_len
     assert patch_threads_and_calls["sounds"] == expected_sounds
     assert patch_threads_and_calls["lighting"] == expected_lighting
+    assert bell_calls["bell"] == expected_bell
+    skaven.bell.main = orig_bell_main
 
 
 def test_handle_video_playback_no_video_exit(monkeypatch: pytest.MonkeyPatch) -> None:

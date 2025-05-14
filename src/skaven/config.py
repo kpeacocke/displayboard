@@ -57,7 +57,9 @@ MAIN_SHUTDOWN_WAIT_S = 2
 
 # --- Lighting ---
 LED_COUNT = 30
-LED_PIN_BCM = 18  # BCM pin number for GPIO18
+LED_PIN_BCM = (
+    21  # BCM pin number for GPIO21 (changed from 18; 18 is now reserved for bell)
+)
 LED_BRIGHTNESS = 0.4
 LED_ORDER = "GRB"  # Color order for NeoPixels
 
