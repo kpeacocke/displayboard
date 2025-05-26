@@ -22,10 +22,12 @@ include = [
 python = "^3.9"
 pygame = "^2.5.2"
 python-dotenv = "^1.1.0"
- rpi-ws281x = { version = "^5.0.0", markers = "sys_platform == 'linux'" }  # Raspberry Pi LED driver on Linux only
- adafruit-circuitpython-neopixel = { version = "^6.3.11", markers = "sys_platform == 'linux'" }  # NeoPixel wrapper on Linux only
+rpi-ws281x = { version = "^5.0.0", markers = "sys_platform == 'linux'" }  # Raspberry Pi LED driver on Linux only
+adafruit-circuitpython-neopixel = { version = "^6.3.11", markers = "sys_platform == 'linux'" }  # NeoPixel wrapper on Linux only
 gpiozero = "^2.0.1"  # GPIO control via gpiozero
 pigpio = "^1.78"
+
+rpi-gpio = { version = "*", markers = "sys_platform == 'linux'" }  # Direct GPIO access for Pi only
 
 
 

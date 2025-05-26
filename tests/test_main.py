@@ -455,19 +455,23 @@ def test_start_threads_calls(
     skaven.bell.main = orig_bell_main
 
 
+@pytest.mark.timeout(2)
 def test_handle_video_playback_no_video_exit(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Covers handle_video_playback exit immediately when no_video and event is set."""
+    import time
+
     args = argparse.Namespace(no_video=True)
     stop_event = threading.Event()
     stop_event.set()
+    # Defensive: patch time.sleep to avoid any possible hang
+    monkeypatch.setattr(time, "sleep", lambda s: None)
     dispatcher.handle_video_playback(args, stop_event)
 
 
+@pytest.mark.timeout(2)
 def test_handle_video_playback_no_video_keyboardinterrupt(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Covers KeyboardInterrupt in disabled video playback loop."""
-    import time
 
     args = argparse.Namespace(no_video=True)
     stop_event = threading.Event()
@@ -477,7 +481,9 @@ def test_handle_video_playback_no_video_keyboardinterrupt(
         call["sleep"] += 1
         raise KeyboardInterrupt
 
-    # Patch only the sleep function in time module
+    import time
+
+    # Patch the sleep function in the time module directly
     monkeypatch.setattr(time, "sleep", fake_sleep)
     dispatcher.handle_video_playback(args, stop_event)
     assert call["sleep"] == 1

@@ -1,37 +1,15 @@
-"""
-Lighting effects for Skaven project.
-
-This module provides the Skaven flicker/breathe LED effect for NeoPixel strips.
-All public functions are type-annotated and documented for clarity and testability.
-"""
-
-__all__ = [
-    "skaven_flicker_breathe",
-    "pixels",
-    "logger",
-    "config",
-]
 import time
 import threading
 import logging
 import random
 from typing import Optional
 import math
+from skaven.neopixel import NeoPixel
+from . import config
 
-from . import config  # Import config moved to top
-
-try:
-    from skaven.board import D18
-
-    _has_d18 = True
-except ImportError:
-    D18 = 18  # fallback to default value, but mark as not available
-    _has_d18 = False
-from skaven.neopixel import NeoPixel  # Removed unused GRB import
 
 # Module logger
 logger = logging.getLogger(__name__)
-
 
 # Lighting now always uses config.LED_PIN_BCM (default: 21). Pin 18 is reserved for bell.
 led_pin_to_use = config.LED_PIN_BCM
@@ -44,6 +22,20 @@ pixels = NeoPixel(
     pixel_order=config.LED_ORDER,  # Use config string directly
 )
 
+"""
+Lighting effects for Skaven project.
+
+This module provides the Skaven flicker/breathe LED effect for NeoPixel strips.
+All public functions are type-annotated and documented for clarity and testability.
+"""
+
+
+__all__ = [
+    "skaven_flicker_breathe",
+    "pixels",
+    "logger",
+    "config",
+]
 
 # --- Flicker + Breathing effect ---
 
@@ -104,10 +96,41 @@ def skaven_flicker_breathe(stop_event: Optional[threading.Event] = None) -> None
         pixels.show()
 
 
-# Remove if __name__ == "__main__": block if this module is not meant
-# to be run directly
-# if __name__ == "__main__":
-#     try:
-#         skaven_flicker_breathe(iterations=0) # iterations not used anymore
-#     except KeyboardInterrupt:
-#         logger.info("🛑 Lighting effect stopped by user.")
+if __name__ == "__main__":
+    print("Lighting module main block running")
+    stop_event = threading.Event()
+    timer = threading.Timer(10, stop_event.set)
+    timer.start()
+    try:
+        skaven_flicker_breathe(stop_event)
+    except KeyboardInterrupt:
+        print("\nInterrupted by user.")
+        stop_event.set()
+    finally:
+        pixels.fill((0, 0, 0))
+        pixels.show()
+        print("Lighting test complete and LEDs turned off.")
+
+
+try:
+    from skaven.board import D18
+
+    _has_d18 = True
+except ImportError:
+    D18 = 18  # fallback to default value, but mark as not available
+    _has_d18 = False
+
+# Module logger
+logger = logging.getLogger(__name__)
+
+
+# Lighting now always uses config.LED_PIN_BCM (default: 21). Pin 18 is reserved for bell.
+led_pin_to_use = config.LED_PIN_BCM
+
+pixels = NeoPixel(
+    led_pin_to_use,  # Use determined pin
+    config.LED_COUNT,
+    brightness=config.LED_BRIGHTNESS,
+    auto_write=False,
+    pixel_order=config.LED_ORDER,  # Use config string directly
+)
