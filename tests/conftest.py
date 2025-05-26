@@ -199,12 +199,12 @@ def patch_random(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.fixture(autouse=True)
-def patch_skaven_bell_servo(monkeypatch: pytest.MonkeyPatch) -> None:
+def patch_displayboard_bell_servo(monkeypatch: pytest.MonkeyPatch) -> None:
     """
-    Ensure skaven.bell.Servo is always DummyServo and clear any existing servo.
+    Ensure displayboard.bell.Servo is always DummyServo and clear any existing servo.
     This prevents real hardware instantiation in any test.
     """
-    import skaven.bell as bell
+    import displayboard.bell as bell
 
     # Override Servo class to DummyServo
     monkeypatch.setattr(bell, "Servo", DummyServo)
@@ -240,10 +240,10 @@ def mock_led_button(monkeypatch: pytest.MonkeyPatch) -> tuple[type, type]:
             if hasattr(self, "_when_pressed"):
                 self._when_pressed()
 
-    monkeypatch.setattr("skaven.board.LED", DummyLED, raising=False)
-    monkeypatch.setattr("skaven.board.Button", DummyButton, raising=False)
-    monkeypatch.setattr("skaven.lighting.LED", DummyLED, raising=False)
-    monkeypatch.setattr("skaven.lighting.Button", DummyButton, raising=False)
+    monkeypatch.setattr("displayboard.board.LED", DummyLED, raising=False)
+    monkeypatch.setattr("displayboard.board.Button", DummyButton, raising=False)
+    monkeypatch.setattr("displayboard.lighting.LED", DummyLED, raising=False)
+    monkeypatch.setattr("displayboard.lighting.Button", DummyButton, raising=False)
     return DummyLED, DummyButton
 
 
@@ -271,7 +271,7 @@ def mock_neopixel(monkeypatch: pytest.MonkeyPatch) -> type:
         def __getitem__(self, idx: int) -> object:
             return self._pixels[idx]
 
-    monkeypatch.setattr("skaven.neopixel.NeoPixel", DummyNeoPixel, raising=False)
+    monkeypatch.setattr("displayboard.neopixel.NeoPixel", DummyNeoPixel, raising=False)
     return DummyNeoPixel
 
 
@@ -279,13 +279,13 @@ def mock_neopixel(monkeypatch: pytest.MonkeyPatch) -> type:
 @pytest.fixture(autouse=False)
 def mock_board_pins(monkeypatch: pytest.MonkeyPatch) -> object:
     import types
-    import skaven.board
+    import displayboard.board
 
     dummy_board = types.SimpleNamespace(D18=18, D21=21, D12=12, D13=13)
-    monkeypatch.setattr(skaven.board, "D18", 18, raising=False)
-    monkeypatch.setattr(skaven.board, "D21", 21, raising=False)
-    monkeypatch.setattr(skaven.board, "D12", 12, raising=False)
-    monkeypatch.setattr(skaven.board, "D13", 13, raising=False)
+    monkeypatch.setattr(displayboard.board, "D18", 18, raising=False)
+    monkeypatch.setattr(displayboard.board, "D21", 21, raising=False)
+    monkeypatch.setattr(displayboard.board, "D12", 12, raising=False)
+    monkeypatch.setattr(displayboard.board, "D13", 13, raising=False)
     return dummy_board
 
 
@@ -338,6 +338,6 @@ def mock_pygame(monkeypatch: pytest.MonkeyPatch) -> object:
         error=FakePygameError,
         init=MagicMock(),
     )
-    monkeypatch.setattr("skaven.bell.pygame", mock_pygame_mod)
-    monkeypatch.setattr("skaven.sounds.pygame", mock_pygame_mod)
+    monkeypatch.setattr("displayboard.bell.pygame", mock_pygame_mod)
+    monkeypatch.setattr("displayboard.sounds.pygame", mock_pygame_mod)
     return mock_pygame_mod

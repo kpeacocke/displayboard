@@ -1,5 +1,5 @@
 """
-Board pin definitions for Skaven project.
+Board pin definitions for displayboard project.
 
 This module provides symbolic names for GPIO pins used in the project.
 """

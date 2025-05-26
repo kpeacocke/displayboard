@@ -11,11 +11,11 @@ from _pytest.monkeypatch import MonkeyPatch
 @pytest.fixture(params=[18, 21, 99])
 def hardware_pin(request: pytest.FixtureRequest, monkeypatch: MonkeyPatch) -> int:
     # Patch the config or board to simulate different hardware
-    monkeypatch.setattr("skaven.config.LED_PIN_BCM", request.param, raising=False)
+    monkeypatch.setattr("displayboard.config.LED_PIN_BCM", request.param, raising=False)
     return int(request.param)
 
 
-def test_skaven_flicker_breathe_runs_and_stops(
+def test_flicker_breathe_runs_and_stops(
     mock_neopixel: MagicMock, dummy_event: MagicMock, hardware_pin: int
 ) -> None:
     stop_event = dummy_event
@@ -38,21 +38,23 @@ def test_skaven_flicker_breathe_runs_and_stops(
         next(time_gen)
         return False
 
-    with patch("skaven.neopixel.NeoPixel", autospec=True) as mock_neopixel:
+    with patch("displayboard.neopixel.NeoPixel", autospec=True) as mock_neopixel:
         mock_pixels = MagicMock()
         mock_pixels.__setitem__ = MagicMock()
         mock_pixels.show = MagicMock()
         mock_pixels.fill = MagicMock()
         mock_neopixel.return_value = mock_pixels
-        sys.modules.pop("skaven.lighting", None)
-        import skaven.lighting as lighting_module
+        sys.modules.pop("displayboard.lighting", None)
+        import displayboard.lighting as lighting_module
 
         importlib.reload(lighting_module)
-        with patch("skaven.lighting.time.time", side_effect=lambda: next(time_gen)):
-            with patch("skaven.lighting.random.random", return_value=0.1):
-                with patch("skaven.lighting.random.randint", return_value=10):
+        with patch(
+            "displayboard.lighting.time.time", side_effect=lambda: next(time_gen)
+        ):
+            with patch("displayboard.lighting.random.random", return_value=0.1):
+                with patch("displayboard.lighting.random.randint", return_value=10):
                     stop_event.wait = mock_wait
-                    lighting_module.skaven_flicker_breathe(stop_event=stop_event)
+                    lighting_module.flicker_breathe(stop_event=stop_event)
         # Use the mock_pixels object for assertions,
         # not the function references
         assert mock_pixels.show.call_count > 0
@@ -72,7 +74,7 @@ def test_lighting_pin_selection_branches(
     - D18 != config.LED_PIN_BCM
     - ImportError (D18 missing)
     """
-    with patch("skaven.neopixel.NeoPixel", autospec=True) as mock_neopixel:
+    with patch("displayboard.neopixel.NeoPixel", autospec=True) as mock_neopixel:
         mock_pixels = MagicMock()
         mock_pixels.__setitem__ = MagicMock()
         mock_pixels.show = MagicMock()
@@ -80,32 +82,32 @@ def test_lighting_pin_selection_branches(
         mock_neopixel.return_value = mock_pixels
 
         # --- Case 1: D18 == config.LED_PIN_BCM ---
-        sys.modules.pop("skaven.lighting", None)
-        sys.modules.pop("skaven.board", None)
-        sys.modules.pop("skaven.config", None)
-        monkeypatch.setattr("skaven.board.D18", 42, raising=False)
-        monkeypatch.setattr("skaven.config.LED_PIN_BCM", 42, raising=False)
-        import skaven.lighting as lighting_module
+        sys.modules.pop("displayboard.lighting", None)
+        sys.modules.pop("displayboard.board", None)
+        sys.modules.pop("displayboard.config", None)
+        monkeypatch.setattr("displayboard.board.D18", 42, raising=False)
+        monkeypatch.setattr("displayboard.config.LED_PIN_BCM", 42, raising=False)
+        import displayboard.lighting as lighting_module
 
         importlib.reload(lighting_module)
         assert lighting_module.led_pin_to_use == 42
 
         # --- Case 2: D18 != config.LED_PIN_BCM ---
-        sys.modules.pop("skaven.lighting", None)
-        sys.modules.pop("skaven.board", None)
-        sys.modules.pop("skaven.config", None)
-        monkeypatch.setattr("skaven.board.D18", 1, raising=False)
-        monkeypatch.setattr("skaven.config.LED_PIN_BCM", 2, raising=False)
-        import skaven.lighting as lighting_module
+        sys.modules.pop("displayboard.lighting", None)
+        sys.modules.pop("displayboard.board", None)
+        sys.modules.pop("displayboard.config", None)
+        monkeypatch.setattr("displayboard.board.D18", 1, raising=False)
+        monkeypatch.setattr("displayboard.config.LED_PIN_BCM", 2, raising=False)
+        import displayboard.lighting as lighting_module
 
         importlib.reload(lighting_module)
         assert lighting_module.led_pin_to_use == 2
 
         # --- Case 3: D18 missing (fallback to config.LED_PIN_BCM) ---
-        sys.modules.pop("skaven.lighting", None)
-        sys.modules.pop("skaven.board", None)
-        sys.modules.pop("skaven.config", None)
-        # Replace skaven.board with a dummy module that raises ImportError
+        sys.modules.pop("displayboard.lighting", None)
+        sys.modules.pop("displayboard.board", None)
+        sys.modules.pop("displayboard.config", None)
+        # Replace displayboard.board with a dummy module that raises ImportError
         # on D18 import
 
         class DummyBoard(types.ModuleType):
@@ -115,19 +117,19 @@ def test_lighting_pin_selection_branches(
                     raise ImportError("No module named 'D18'")
                 raise AttributeError(name)
 
-        sys.modules["skaven.board"] = DummyBoard("skaven.board")
-        monkeypatch.setattr("skaven.config.LED_PIN_BCM", 99, raising=False)
-        import skaven.lighting as lighting_module
+        sys.modules["displayboard.board"] = DummyBoard("displayboard.board")
+        monkeypatch.setattr("displayboard.config.LED_PIN_BCM", 99, raising=False)
+        import displayboard.lighting as lighting_module
 
         importlib.reload(lighting_module)
         assert lighting_module.led_pin_to_use == 99
-        # Restore real skaven.board for subsequent tests
-        sys.modules.pop("skaven.board", None)
+        # Restore real displayboard.board for subsequent tests
+        sys.modules.pop("displayboard.board", None)
 
 
-def test_skaven_flicker_breathe_finally_cleanup(dummy_event: MagicMock) -> None:
+def test_flicker_breathe_finally_cleanup(dummy_event: MagicMock) -> None:
     stop_event = dummy_event
-    with patch("skaven.neopixel.NeoPixel", autospec=True) as mock_neopixel:
+    with patch("displayboard.neopixel.NeoPixel", autospec=True) as mock_neopixel:
         mock_pixels = MagicMock()
         mock_pixels.__setitem__ = MagicMock()
         # Patch show to raise after first call
@@ -143,13 +145,13 @@ def test_skaven_flicker_breathe_finally_cleanup(dummy_event: MagicMock) -> None:
         mock_pixels.show.side_effect = show_side_effect
         mock_pixels.fill = MagicMock()
         mock_neopixel.return_value = mock_pixels
-        sys.modules.pop("skaven.lighting", None)
-        import skaven.lighting as lighting_module
+        sys.modules.pop("displayboard.lighting", None)
+        import displayboard.lighting as lighting_module
 
         importlib.reload(lighting_module)
-        with patch("skaven.lighting.time.time", return_value=0.0):
+        with patch("displayboard.lighting.time.time", return_value=0.0):
             try:
-                lighting_module.skaven_flicker_breathe(stop_event=stop_event)
+                lighting_module.flicker_breathe(stop_event=stop_event)
             except Exception as e:
                 assert str(e) == "fail!"
         mock_pixels.fill.assert_called_with((0, 0, 0))

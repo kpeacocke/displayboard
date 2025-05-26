@@ -2,8 +2,8 @@ import sys
 import threading
 import pytest
 from typing import Dict, Callable, Optional, Tuple, Any
-from skaven import sounds, lighting, video_loop
-import skaven.main as dispatcher
+from displayboard import sounds, lighting, video_loop
+import displayboard.main as dispatcher
 from unittest.mock import MagicMock
 import os
 import subprocess
@@ -52,7 +52,7 @@ def patch_threads_and_calls(monkeypatch: pytest.MonkeyPatch) -> Dict[str, int]:
     )
     monkeypatch.setattr(
         lighting,
-        "skaven_flicker_breathe",
+        "flicker_breathe",
         lambda stop_event=None: calls.update(lighting=calls["lighting"] + 1),
     )
     monkeypatch.setattr(
@@ -88,7 +88,7 @@ def test_main_keyboard_interrupt_in_video(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Covers KeyboardInterrupt in handle_video_playback."""
-    monkeypatch.setattr(sys, "argv", ["skaven"])
+    monkeypatch.setattr(sys, "argv", ["displayboard"])
 
     def fake_video_main(stop_event: object = None) -> None:
         raise KeyboardInterrupt
@@ -117,7 +117,7 @@ def test_main_keyboard_interrupt_in_shutdown(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Covers KeyboardInterrupt in handle_shutdown."""
-    monkeypatch.setattr(sys, "argv", ["skaven"])
+    monkeypatch.setattr(sys, "argv", ["displayboard"])
 
     def fake_video_main(stop_event: object = None) -> None:
         pass
@@ -143,7 +143,7 @@ def test_main_keyboard_interrupt_in_shutdown(
 def test_main_normal_exit(monkeypatch: pytest.MonkeyPatch) -> None:
     """Covers normal exit from main."""
     monkeypatch.setattr(
-        sys, "argv", ["skaven", "--no-sounds", "--no-lighting", "--no-video"]
+        sys, "argv", ["displayboard", "--no-sounds", "--no-lighting", "--no-video"]
     )
     monkeypatch.setattr(dispatcher, "start_threads", lambda args, stop_event: [])
     monkeypatch.setattr(dispatcher, "configure_logging", lambda args: None)
@@ -156,7 +156,7 @@ def test_main_normal_exit(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_parse_args_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
     """Ensure default parse_args has all flags False."""
-    monkeypatch.setattr(sys, "argv", ["skaven"])
+    monkeypatch.setattr(sys, "argv", ["displayboard"])
     args = dispatcher.parse_args()
     assert not args.no_sounds
     assert not args.no_video
@@ -211,7 +211,7 @@ def test_handle_shutdown_branches(
     """Covers handle_shutdown loop exit and wait branches using dummy_event."""
     # Use real parse_args for coverage
     # Patch sys.argv to only include arguments that parse_args expects
-    monkeypatch.setattr(sys, "argv", ["skaven"])
+    monkeypatch.setattr(sys, "argv", ["displayboard"])
     args = dispatcher.parse_args()
     mock_logger = MagicMock()
     monkeypatch.setattr(dispatcher, "_join_threads", lambda threads, logger: None)
@@ -261,7 +261,7 @@ def test_configure_logging_basic(monkeypatch: pytest.MonkeyPatch) -> None:
     for handler in logging.root.handlers[:]:
         logging.root.removeHandler(handler)
     logger = dispatcher.configure_logging(args)
-    from skaven import config
+    from displayboard import config
 
     assert logger.getEffectiveLevel() == config.LOG_LEVEL_WARNING
 
@@ -335,7 +335,7 @@ def test_handle_shutdown_video_enabled(monkeypatch: pytest.MonkeyPatch) -> None:
     """Covers handle_shutdown branch where video is enabled (calls video_loop.main)."""
     import argparse
     import threading
-    import skaven.main as main
+    import displayboard.main as main
     import logging
 
     called = {}
@@ -347,7 +347,9 @@ def test_handle_shutdown_video_enabled(monkeypatch: pytest.MonkeyPatch) -> None:
     args = argparse.Namespace(no_video=False)
     threads: list[threading.Thread] = []
     stop_event = threading.Event()
-    main.handle_shutdown(threads, stop_event, logging.getLogger("skaven.test"), args)
+    main.handle_shutdown(
+        threads, stop_event, logging.getLogger("displayboard.test"), args
+    )
     assert called["video"]
 
 
@@ -357,7 +359,7 @@ def test_handle_video_playback_keyboardinterrupt(
     """Covers KeyboardInterrupt in handle_video_playback (video enabled)."""
     import argparse
     import threading
-    import skaven.main as main
+    import displayboard.main as main
 
     args = argparse.Namespace(no_video=False)
     stop_event = threading.Event()
@@ -374,7 +376,7 @@ def test_handle_shutdown_keyboardinterrupt(monkeypatch: pytest.MonkeyPatch) -> N
     """Covers KeyboardInterrupt in handle_shutdown (video enabled)."""
     import argparse
     import threading
-    import skaven.main as main
+    import displayboard.main as main
     import logging
 
     args = argparse.Namespace(no_video=False)
@@ -385,16 +387,16 @@ def test_handle_shutdown_keyboardinterrupt(monkeypatch: pytest.MonkeyPatch) -> N
 
     monkeypatch.setattr(main.video_loop, "main", raise_keyboardinterrupt)
     # Should not raise, just handle KeyboardInterrupt
-    main.handle_shutdown([], stop_event, logging.getLogger("skaven.test"), args)
+    main.handle_shutdown([], stop_event, logging.getLogger("displayboard.test"), args)
 
 
 def test_main_py_entry_subprocess() -> None:
-    """Covers the __main__ block in skaven.main using subprocess."""
+    """Covers the __main__ block in displayboard.main using subprocess."""
     result = subprocess.run(
         [
             sys.executable,
             "-m",
-            "skaven.main",
+            "displayboard.main",
             "--no-sounds",
             "--no-video",
             "--no-lighting",
@@ -433,15 +435,15 @@ def test_start_threads_calls(
 ) -> None:
     """Covers start_threads enabling/disabling sound, lighting, and bell threads."""
     # Patch bell.main to increment a counter
-    import skaven.bell
+    import displayboard.bell
 
     bell_calls = {"bell": 0}
-    orig_bell_main = skaven.bell.main
+    orig_bell_main = displayboard.bell.main
 
     def fake_bell_main(stop_event: Optional[Any] = None) -> None:
         bell_calls["bell"] += 1
 
-    skaven.bell.main = fake_bell_main
+    displayboard.bell.main = fake_bell_main
 
     args = argparse.Namespace(
         no_sounds=no_sounds, no_lighting=no_lighting, no_bell=no_bell
@@ -452,7 +454,7 @@ def test_start_threads_calls(
     assert patch_threads_and_calls["sounds"] == expected_sounds
     assert patch_threads_and_calls["lighting"] == expected_lighting
     assert bell_calls["bell"] == expected_bell
-    skaven.bell.main = orig_bell_main
+    displayboard.bell.main = orig_bell_main
 
 
 @pytest.mark.timeout(2)

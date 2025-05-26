@@ -29,7 +29,7 @@ jobs:
 
       - name: Write consumer script
         run: |
-          echo "from skaven_soundscape import main" > consumer_check.py
+          echo "from displayboard import main" > consumer_check.py
           echo "reveal_type(main.SOUND_VOLUME)" >> consumer_check.py
 
       - name: Run mypy on consumer

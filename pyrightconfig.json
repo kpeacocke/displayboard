@@ -1,4 +1,7 @@
 {
     "reportMissingTypeStubs": false,
-    "reportMissingImports": false
+    "reportMissingImports": false,
+    "extraPaths": [
+        "typings"
+    ]
 }

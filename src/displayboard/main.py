@@ -1,5 +1,5 @@
 """
-Main entry point for Skaven soundscape, video, and lighting system.
+Main entry point for diorama soundscape, video, and lighting system.
 
 This module parses CLI arguments, configures logging, and starts the sound, video, and lighting
 subsystems. All public functions are type-annotated and documented for clarity and testability.
@@ -19,7 +19,7 @@ import threading
 import logging
 import time  # Added for sleep in video-disabled loop
 
-from skaven import sounds, video_loop, lighting, bell
+from . import sounds, video_loop, lighting, bell
 from . import config  # Import config
 
 __all__ = ["sounds", "video_loop", "lighting", "parse_args", "main"]
@@ -27,14 +27,14 @@ __all__ = ["sounds", "video_loop", "lighting", "parse_args", "main"]
 
 def parse_args() -> argparse.Namespace:
     """
-    Parse command-line arguments for the Skaven soundscape system.
+    Parse command-line arguments for the diorama soundscape system.
 
     Returns:
         argparse.Namespace with parsed arguments.
     """
     parser = argparse.ArgumentParser(
-        prog="skaven",
-        description="Skaven soundscape + video + lighting controller",
+        prog="diorama",
+        description="Diorama soundscape + video + lighting controller",
     )
     parser.add_argument(
         "--no-bell",
@@ -102,7 +102,7 @@ def start_threads(
 
     if not args.no_lighting:
         t = threading.Thread(
-            target=lighting.skaven_flicker_breathe,
+            target=lighting.flicker_breathe,
             name="LightingThread",
             daemon=False,
             args=(stop_event,),
@@ -218,7 +218,7 @@ def handle_shutdown(
                 stop_event.wait(config.MAIN_LOOP_SLEEP_S)
     except KeyboardInterrupt:
         pass
-    logger.info("🛑 Shutdown signal received. Stopping threads...")
+    logger.info("[1F Shutdown signal received. Stopping threads...")
     stop_event.set()
     _join_threads(threads, logger)
     logger.info("All threads stopped. Exiting.")

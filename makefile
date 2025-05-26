@@ -14,27 +14,32 @@ help:  ## Show this help message
 install:  ## Install dependencies using Poetry
 	$(POETRY) install
 
+
 run:  ## Run main application
 	@echo "Running main application..."
-	$(PYTHON) -m skaven.main
+	$(PYTHON) -m displayboard.main
+
 
 run-dev:  ## Run the main application in development mode
 	@echo "Running main application in development mode..."
-	$(PYTHON) -m skaven.main
+	$(PYTHON) -m displayboard.main
 
 test:  ## Run all tests
 	$(POETRY) run pytest
 
+
 coverage:  ## Run tests with coverage and show report
-	PYTHONPATH=src $(POETRY) run pytest --cov=skaven --cov-report=term-missing
+	PYTHONPATH=src $(POETRY) run pytest --cov=displayboard --cov-report=term-missing
+
 
 coverage-html:  ## Generate and open HTML coverage report
-	PYTHONPATH=src $(POETRY) run pytest --cov=skaven --cov-report=html
+	PYTHONPATH=src $(POETRY) run pytest --cov=displayboard --cov-report=html
 	@if command -v open > /dev/null; then open htmlcov/index.html; \
 	elif command -v xdg-open > /dev/null; then xdg-open htmlcov/index.html; fi
 
+
 check-coverage:  ## Fail if coverage is below 80%
-	PYTHONPATH=src $(POETRY) run pytest --cov=skaven --cov-fail-under=80
+	PYTHONPATH=src $(POETRY) run pytest --cov=displayboard --cov-fail-under=80
 
 lint:  ## Run ruff, mypy, and black --check
 	$(POETRY) run ruff check .

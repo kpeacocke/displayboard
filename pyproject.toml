@@ -1,17 +1,17 @@
 
 
 [tool.poetry]
-name = "skaven"
+name = "displayboard"
 version = "0.1.0"
-description = "A randomized soundscape engine for Warhammer Age of Sigmar Skaven-themed displays"
+description = "A randomized soundscape engine for Warhammer Age of Sigmar display boards"
 authors = ["Kristian Peacocke <krpeacocke@gmail.com>"]
 license = "MIT"
 readme = "README.md"
 packages = [
-  { include = "skaven", from = "src" }
+  { include = "displayboard", from = "src" }
 ]
 include = [
-  "src/skaven/py.typed",
+  "src/displayboard/py.typed",
   "src/assets/sounds/**",
   "src/assets/video/**",
 ]
@@ -45,12 +45,12 @@ pyfakefs = "^5.8.0"
 
 
 [tool.poetry.scripts]
-play-video = "skaven.video_loop:main"  # ✅ CLI entry point updated for new package
-skaven = "skaven.main:main"  # Main CLI entry point
+play-video = "displayboard.video_loop:main"
+displayboard = "displayboard.main:main"
 
 [tool.coverage.run]
 branch = true
-source = ["src/skaven"]
+source = ["src/displayboard"]
 
 [tool.coverage.report]
 show_missing = true
@@ -63,6 +63,7 @@ strict = true
 ignore_missing_imports = true
 exclude = "tests/.*"
 allow_untyped_decorators = true
+mypy_path = "typings"
 
 [tool.ruff]
 line-length = 100

@@ -4,7 +4,7 @@ import types
 import pytest
 import platform
 import threading
-import skaven.video_loop as video_loop
+import displayboard.video_loop as video_loop
 
 
 @pytest.fixture(autouse=True)
@@ -145,14 +145,10 @@ def test_handle_video_process_keyboard_interrupt(
     def raise_ki(cmd: str) -> None:
         raise KeyboardInterrupt()
 
-    # Access subprocess via video_loop attribute, or import if not present
-    if hasattr(video_loop, "subprocess"):
-        monkeypatch.setattr(video_loop.subprocess, "Popen", raise_ki)
-    else:
-        import subprocess
+    import subprocess
 
-        monkeypatch.setattr(subprocess, "Popen", raise_ki)
-        monkeypatch.setattr(video_loop, "subprocess", subprocess)
+    monkeypatch.setattr(subprocess, "Popen", raise_ki)
+    monkeypatch.setattr(video_loop, "subprocess", subprocess)
     proc = video_loop.handle_video_process(None)
     assert called["called"]
     assert proc is None

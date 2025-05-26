@@ -1,4 +1,4 @@
-# Contributing to Skaven Soundscape
+# Contributing to Displayboard Soundscape
 
 Thank you for squeak-squeak-interest in contributing to this chaos-ridden codebase! This document outlines how to get started and the conventions we enforce.
 
@@ -28,8 +28,8 @@ Thank you for squeak-squeak-interest in contributing to this chaos-ridden codeba
 ### Clone & Install
 
 ```bash
-git clone git@github.com:kpeacocke/skaven-soundscape.git
-cd skaven-soundscape
+git clone git@github.com:kpeacocke/displayboard-soundscape.git
+cd displayboard-soundscape
 poetry install
 ```
 
@@ -210,8 +210,8 @@ If everything passes on `main`, a new release will be tagged.
 ## 📦 Project Structure
 
 ```bash
-skaven-soundscape/
-├── skaven_soundscape/     # Main app code
+displayboard-soundscape/
+├── displayboard/     # Main app code
 ├── tests/                 # Pytest tests
 ├── sounds/                # Audio assets
 ├── .vscode/               # Editor config

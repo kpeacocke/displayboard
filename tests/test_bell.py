@@ -487,7 +487,7 @@ def test_import_bell_pygame_mixer_init_fails(
     # tracked by coverage.
     # Just call a function that triggers the import-time mixer.init (if needed).
     # If the import-time error is not triggered, call a function that uses the mixer.
-    import skaven.bell as bell_module
+    import displayboard.bell as bell_module
 
     # Call a function to ensure the error is logged if not already
     try:
@@ -797,7 +797,7 @@ def fresh_bell_module(
     """
     import pygame  # Import pygame directly to avoid attribute errors
 
-    import skaven.bell as bell_module_local
+    import displayboard.bell as bell_module_local
 
     # Reset global servo if it exists in the module
     if hasattr(bell_module_local, "servo"):
@@ -808,7 +808,7 @@ def fresh_bell_module(
     monkeypatch.setattr(pygame.mixer, "init", lambda: None)
     monkeypatch.setattr(pygame.mixer, "quit", lambda: None)
     # Patch config if needed
-    import skaven.config as config_module
+    import displayboard.config as config_module
 
     return bell_module_local, config_module, dummy_music
 
@@ -871,7 +871,7 @@ def test_random_trigger_loop_no_trigger(
     dummy_event: object,
 ) -> None:
     bell_module, config_module, _ = fresh_bell_module
-    caplog.set_level(logging.INFO, logger="skaven.bell")
+    caplog.set_level(logging.INFO, logger="displayboard.bell")
     # No need to patch logger: bell.py now uses logging.getLogger(__name__)
     # in every function
 
@@ -1132,10 +1132,10 @@ def test_main_servo_close_failure_in_finally(
     """
     bell_module, _, _ = fresh_bell_module  # noqa: E501
 
-    # Robust log capture: forcibly reset both skaven.bell and bell_module.__name__ loggers
+    # Robust log capture: forcibly reset both displayboard.bell and bell_module.__name__ loggers
     import logging
 
-    for logger_name in ("skaven.bell", bell_module.__name__):
+    for logger_name in ("displayboard.bell", bell_module.__name__):
         logger = logging.getLogger(logger_name)
         logger.handlers.clear()
         logger.propagate = True

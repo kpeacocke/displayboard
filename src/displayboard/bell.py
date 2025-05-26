@@ -1,7 +1,7 @@
 """
-Screaming Bell control module.
+Bell control module.
 
-This module provides functions to control the Skaven Screaming Bell, including sound playback
+This module provides functions to control the Bell, including sound playback
 and servo movement. All public functions are type-annotated and documented for clarity and
 testability.
 """
@@ -29,8 +29,8 @@ from typing import Optional
 from . import config  # Import config
 from gpiozero import Servo
 
-# Always use the skaven.bell logger for all log output
-logger = logging.getLogger("skaven.bell")
+# Always use the displayboard.bell logger for all log output
+logger = logging.getLogger("displayboard.bell")
 
 # Set pin factory for gpiozero compatibility
 os.environ["GPIOZERO_PIN_FACTORY"] = config.BELL_GPIO_PIN_FACTORY

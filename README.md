@@ -1,4 +1,4 @@
-# 🐀 Skaven Soundscape
+# �️ Displayboard Soundscape
 
 ---
 
@@ -7,8 +7,8 @@
 1. **Clone the repo & install dependencies:**
 
    ```zsh
-   git clone https://github.com/kpeacocke/skaven-soundscape.git
-   cd skaven-soundscape
+   git clone https://github.com/kpeacocke/displayboard-soundscape.git
+   cd displayboard-soundscape
    poetry install
    cp .env.example .env  # Edit as needed
    ```
@@ -18,12 +18,12 @@
    ```zsh
    make run
    # or
-   poetry run skaven
+   poetry run displayboard
    ```
 
 ---
 
-An immersive, randomized soundscape system for Skaven-themed Warhammer Age of Sigmar display boards.
+An immersive, randomized soundscape system for Warhammer Age of Sigmar display boards.
 
 🎵 Loops ambient sewer sounds
 🐁 Plays randomized rat noises, chain rattles, and occasional screams
@@ -71,7 +71,7 @@ Copy `.env.example` to `.env` and adjust as needed for your setup.
 
 ---
 
-You can install and run the Skaven Soundscape as a proper Python package:
+You can install and run the Displayboard Soundscape as a proper Python package:
 
 ```bash
 # Install dependencies (dev)
@@ -81,8 +81,8 @@ poetry install
 pip install -e .
 
 # Run the main soundscape system (CLI entry point)
-skaven --help
-skaven           # Starts the soundscape (sound, video, lighting)
+displayboard --help
+displayboard           # Starts the soundscape (sound, video, lighting)
 play-video       # Play only the video loop
 ```
 
@@ -94,8 +94,8 @@ This project is bundled as a modern Python package using [PEP 517/518] and Poetr
 
 ```toml
 [tool.poetry.scripts]
-skaven = "skaven.main:main"
-play-video = "skaven.video_loop:main"
+displayboard = "displayboard.main:main"
+play-video = "displayboard.video_loop:main"
 ```
 
 ---
@@ -172,7 +172,7 @@ You’ll see a new GitHub Release on the repo.
 
 ### 🧱 Folder Structure
 
-skaven_soundscape/
+displayboard/
 │   main.py
 tests/
 sounds/

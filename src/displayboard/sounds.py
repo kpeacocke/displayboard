@@ -1,7 +1,7 @@
 """
-Soundscape system for Skaven project.
+Soundscape system for diorama projects.
 
-This module provides functions for loading, playing, and managing ambient, chain, skaven, rat,
+This module provides functions for loading, playing, and managing ambient, chain, main, rat,
 and scream sounds. All public functions are type-annotated and documented for clarity and
 testability.
 """
@@ -11,7 +11,7 @@ __all__ = [
     "load_sound_categories",
     "ambient_loop",
     "chains_loop",
-    "skaven_loop",
+    "main_loop",
     "rats_loop",
     "main",
     "pygame",
@@ -29,7 +29,6 @@ import random
 import time
 import threading
 import logging
-
 from . import config
 
 logger = logging.getLogger(__name__)
@@ -68,13 +67,14 @@ def load_sound_categories(base_path: Path) -> Dict[str, List[Path]]:
     Returns:
         Dictionary mapping category names to lists of Path objects.
     """
-    return {
+    cats = {
         "ambient": list_audio_files(base_path / "ambient"),
         "rats": list_audio_files(base_path / "rats"),
         "chains": list_audio_files(base_path / "chains"),
         "screams": list_audio_files(base_path / "screams"),
-        "skaven": list_audio_files(base_path / "skaven"),
+        "displayboard": list_audio_files(base_path / "displayboard"),
     }
+    return cats
 
 
 def ambient_loop(
@@ -141,28 +141,30 @@ def chains_loop(
         s.play()
 
 
-def skaven_loop(
-    skaven_files: list[Path],
+def main_loop(
+    main_files: list[Path],
     stop_event: Optional[threading.Event] = None,
 ) -> None:
     """
-    Play a random skaven sound at random volume every 20–40 seconds.
+    Play a random main sound at random volume every 20–40 seconds.
 
     Args:
-        skaven_files: List of skaven sound files.
+        main_files: List of main sound files.
         stop_event: Optional event to signal loop exit.
     """
-    if not skaven_files:
+    if not main_files:
         return
     event = stop_event or threading.Event()
     while not event.is_set():
-        sleep_time = random.uniform(config.SKAVEN_SLEEP_MIN, config.SKAVEN_SLEEP_MAX)
+        sleep_time = random.uniform(
+            config.MAIN_LOOP_SLEEP_MIN, config.MAIN_LOOP_SLEEP_MAX
+        )
         event.wait(timeout=sleep_time)  # Use wait instead of sleep
         if event.is_set():
             break
-        track = random.choice(skaven_files)
+        track = random.choice(main_files)
         sfx = pygame.mixer.Sound(track)
-        vol = random.uniform(config.SKAVEN_VOLUME_MIN, config.SKAVEN_VOLUME_MAX)
+        vol = random.uniform(config.MAIN_LOOP_VOLUME_MIN, config.MAIN_LOOP_VOLUME_MAX)
         sfx.set_volume(vol)
         sfx.play()
 
@@ -251,7 +253,7 @@ def main(
         rat_files = cats["rats"]
         chain_files = cats["chains"]
         scream_files = cats["screams"]
-        skaven_files = cats["skaven"]
+        main_files = cats["displayboard"] if "displayboard" in cats else []
 
         # Initialize rat_chans here to ensure it's defined for the shutdown logic
         rat_chans: List[Any] = []
@@ -277,11 +279,11 @@ def main(
                 daemon=True,
             ).start()
 
-        # Skaven anywhere
-        if skaven_files:
+        # Main sound loop
+        if main_files:
             threading.Thread(
-                target=skaven_loop,
-                args=(skaven_files, event),
+                target=main_loop,
+                args=(main_files, event),
                 daemon=True,
             ).start()
 
@@ -343,7 +345,7 @@ if __name__ == "__main__":  # pragma: no cover
         "--test-exit", action="store_true", help="Exit quickly for test coverage."
     )
     args = parser.parse_args()
-    if args.test_exit or os.environ.get("SKAVEN_SOUNDS_TEST_EXIT") == "1":
+    if args.test_exit or os.environ.get("SOUNDS_TEST_EXIT") == "1":
         # Fast exit for subprocess/coverage testing
         main(stop_after=1)
     else:
@@ -355,7 +357,7 @@ __all__ = [
     "load_sound_categories",
     "ambient_loop",
     "chains_loop",
-    "skaven_loop",
+    "main_loop",
     "rats_loop",
     "main",
     "pygame",

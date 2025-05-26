@@ -1,19 +1,24 @@
+"""
+Lighting effects for diorama projects.
+
+This module provides a generic flicker/breathe LED effect for NeoPixel strips.
+All public functions are type-annotated and documented for clarity and testability.
+"""
+
 import time
 import threading
 import logging
 import random
 from typing import Optional
 import math
-from skaven.neopixel import NeoPixel
+from .neopixel import NeoPixel
 from . import config
-
 
 # Module logger
 logger = logging.getLogger(__name__)
 
 # Lighting now always uses config.LED_PIN_BCM (default: 21). Pin 18 is reserved for bell.
 led_pin_to_use = config.LED_PIN_BCM
-
 pixels = NeoPixel(
     led_pin_to_use,  # Use determined pin
     config.LED_COUNT,
@@ -21,28 +26,18 @@ pixels = NeoPixel(
     auto_write=False,
     pixel_order=config.LED_ORDER,  # Use config string directly
 )
-
-"""
-Lighting effects for Skaven project.
-
-This module provides the Skaven flicker/breathe LED effect for NeoPixel strips.
-All public functions are type-annotated and documented for clarity and testability.
-"""
-
-
 __all__ = [
-    "skaven_flicker_breathe",
+    "flicker_breathe",
     "pixels",
     "logger",
     "config",
 ]
 
+
 # --- Flicker + Breathing effect ---
-
-
-def skaven_flicker_breathe(stop_event: Optional[threading.Event] = None) -> None:
+def flicker_breathe(stop_event: Optional[threading.Event] = None) -> None:
     """
-    Run the Skaven flicker/breathe LED effect until stop_event is set.
+    Run the generic flicker/breathe LED effect until stop_event is set.
 
     Args:
         stop_event: Optional threading.Event to allow graceful shutdown.
@@ -102,7 +97,7 @@ if __name__ == "__main__":
     timer = threading.Timer(10, stop_event.set)
     timer.start()
     try:
-        skaven_flicker_breathe(stop_event)
+        flicker_breathe(stop_event)
     except KeyboardInterrupt:
         print("\nInterrupted by user.")
         stop_event.set()
@@ -111,9 +106,8 @@ if __name__ == "__main__":
         pixels.show()
         print("Lighting test complete and LEDs turned off.")
 
-
 try:
-    from skaven.board import D18
+    from displayboard.board import D18
 
     _has_d18 = True
 except ImportError:
@@ -122,7 +116,6 @@ except ImportError:
 
 # Module logger
 logger = logging.getLogger(__name__)
-
 
 # Lighting now always uses config.LED_PIN_BCM (default: 21). Pin 18 is reserved for bell.
 led_pin_to_use = config.LED_PIN_BCM

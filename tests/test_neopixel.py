@@ -1,5 +1,5 @@
 import pytest
-from skaven.neopixel import NeoPixel, GRB
+from displayboard.neopixel import NeoPixel, GRB
 from typing import Any
 
 

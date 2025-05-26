@@ -5,32 +5,28 @@ from unittest.mock import patch, MagicMock
 import threading
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, cast
-from skaven import config
+from displayboard import config
 import subprocess
-import pygame  # Keep top-level import for pygame.error
-import skaven.sounds as main
+import pygame
+import displayboard.sounds as main
 
-print("skaven.sounds loaded from:", main.__file__)
+print("displayboard.sounds loaded from:", main.__file__)
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../src")))
 
 
 def test_ambient_loop_empty_returns_immediately() -> None:
-    """Covers: if not ambient_files: return (line 96)"""
     main.ambient_loop([], 100, 0.5)
 
 
 def test_chains_loop_empty_returns_immediately() -> None:
-    """Covers: if not chain_files: return (line 130)"""
     main.chains_loop([], stop_event=threading.Event())
 
 
-def test_skaven_loop_empty_returns_immediately() -> None:
-    """Covers: if not skaven_files: return (line 156)"""
-    main.skaven_loop([], stop_event=threading.Event())
+def test_main_loop_empty_returns_immediately() -> None:
+    main.main_loop([], stop_event=threading.Event())
 
 
 def test_rats_loop_breaks_after_fadeout(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Covers: if event.is_set(): break after fadeout wait (branch 211->186)"""
     files = [Path("r1.wav"), Path("r2.wav")]
     chans = [
         cast(MagicMock, main.pygame.mixer.Channel(1)),
@@ -51,7 +47,6 @@ def test_rats_loop_breaks_after_fadeout(monkeypatch: pytest.MonkeyPatch) -> None
 
 
 def test_rats_loop_fadeout_event_not_set(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Covers: else branch after fadeout wait (event.is_set() is False, line 221 partial branch)"""
     files = [Path("r1.wav"), Path("r2.wav")]
     chans = [
         cast(MagicMock, main.pygame.mixer.Channel(1)),
@@ -77,7 +72,7 @@ def test_rats_loop_fadeout_event_not_set(monkeypatch: pytest.MonkeyPatch) -> Non
     assert call_state["waits"] >= 2
 
 
-@patch("skaven.sounds.logger")
+@patch("displayboard.sounds.logger")
 def test_main_shutdown_wait_generic_exception(
     mock_logger: MagicMock, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -94,7 +89,7 @@ def test_main_shutdown_wait_generic_exception(
             "rats": [],
             "chains": [],
             "screams": [Path("scream.wav")],
-            "skaven": [],
+            "displayboard": [],
         },
     )
     monkeypatch.setattr(main.threading.Thread, "start", lambda self: None)
@@ -118,7 +113,7 @@ def test_main_shutdown_wait_generic_exception(
     mock_logger.critical.assert_called()
 
 
-@patch("skaven.sounds.logger")
+@patch("displayboard.sounds.logger")
 def test_main_exception_in_shutdown_wait_branch_331_332(
     mock_logger: MagicMock, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -134,7 +129,7 @@ def test_main_exception_in_shutdown_wait_branch_331_332(
             "rats": [],
             "chains": [],
             "screams": [Path("scream.wav")],
-            "skaven": [],
+            "displayboard": [],
         },
     )
     monkeypatch.setattr(main.threading.Thread, "start", lambda self: None)
@@ -157,7 +152,7 @@ def test_main_exception_in_shutdown_wait_branch_331_332(
     mock_logger.critical.assert_called()
 
 
-@patch("skaven.sounds.logger")
+@patch("displayboard.sounds.logger")
 def test_main_keyboardinterrupt_in_shutdown_wait_sleep(
     mock_logger: MagicMock, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -173,7 +168,7 @@ def test_main_keyboardinterrupt_in_shutdown_wait_sleep(
             "rats": [],
             "chains": [],
             "screams": [Path("scream.wav")],
-            "skaven": [],
+            "displayboard": [],
         },
     )
     # Disable threads
@@ -201,7 +196,7 @@ def test_main_keyboardinterrupt_in_shutdown_wait_sleep(
     )
 
 
-@patch("skaven.sounds.logger")
+@patch("displayboard.sounds.logger")
 def test_main_exception_in_shutdown_wait_sleep(
     mock_logger: MagicMock, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -219,7 +214,7 @@ def test_main_exception_in_shutdown_wait_sleep(
             "rats": [],
             "chains": [],
             "screams": [Path("scream.wav")],
-            "skaven": [],
+            "displayboard": [],
         },
     )
 
@@ -252,7 +247,7 @@ def test_main_exception_in_shutdown_wait_sleep(
     mock_logger.critical.assert_called()
 
 
-@patch("skaven.sounds.logger")
+@patch("displayboard.sounds.logger")
 def test_main_exception_in_shutdown_wait_only(
     mock_logger: MagicMock, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -269,7 +264,7 @@ def test_main_exception_in_shutdown_wait_only(
             "rats": [],
             "chains": [],
             "screams": [Path("scream.wav")],
-            "skaven": [],
+            "displayboard": [],
         },
     )
     monkeypatch.setattr(main.threading.Thread, "start", lambda self: None)
@@ -293,7 +288,7 @@ def test_main_exception_in_shutdown_wait_only(
     mock_logger.critical.assert_called()
 
 
-@patch("skaven.sounds.logger")
+@patch("displayboard.sounds.logger")
 def test_main_keyboardinterrupt_in_shutdown_wait_only(
     mock_logger: MagicMock, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -311,7 +306,7 @@ def test_main_keyboardinterrupt_in_shutdown_wait_only(
             "rats": [],
             "chains": [],
             "screams": [Path("scream.wav")],
-            "skaven": [],
+            "displayboard": [],
         },
     )
 
@@ -343,7 +338,7 @@ def test_main_keyboardinterrupt_in_shutdown_wait_only(
     )
 
 
-@patch("skaven.sounds.logger")
+@patch("displayboard.sounds.logger")
 def test_main_exception_branch_lines_331_332(
     mock_logger: MagicMock,
     monkeypatch: pytest.MonkeyPatch,
@@ -377,12 +372,12 @@ def test_set_event_soon_sets_event(monkeypatch: pytest.MonkeyPatch) -> None:
     assert event.is_set()
 
 
-@patch("skaven.sounds.logger")
+@patch("displayboard.sounds.logger")
 def test_main_keyboard_interrupt_in_shutdown_wait(
     mock_logger: MagicMock,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import skaven.sounds as main
+    import displayboard.sounds as main
 
     monkeypatch.setattr(main.pygame, "init", lambda: None)
     monkeypatch.setattr(main.pygame.mixer, "init", lambda: None)
@@ -395,7 +390,7 @@ def test_main_keyboard_interrupt_in_shutdown_wait(
             "rats": [],
             "chains": [],
             "screams": [Path("scream.wav")],
-            "skaven": [],
+            "displayboard": [],
         },
     )
     monkeypatch.setattr(threading.Thread, "start", lambda self: None)
@@ -437,7 +432,9 @@ def test_main_no_sounds_sets_event(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         main,
         "load_sound_categories",
-        lambda _: {k: [] for k in ["ambient", "rats", "chains", "screams", "skaven"]},
+        lambda _: {
+            k: [] for k in ["ambient", "rats", "chains", "screams", "displayboard"]
+        },
     )
     monkeypatch.setattr(threading.Thread, "start", lambda self: None)
     event = threading.Event()
@@ -560,7 +557,7 @@ def test_chains_loop_event_set_after_wait(monkeypatch: pytest.MonkeyPatch) -> No
     assert call_state["waits"] >= 1
 
 
-def test_skaven_loop_event_set_after_wait(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_main_loop_event_set_after_wait(monkeypatch: pytest.MonkeyPatch) -> None:
     files = [Path("s1.wav")]
     event = threading.Event()
     call_state = {"waits": 0}
@@ -573,7 +570,7 @@ def test_skaven_loop_event_set_after_wait(monkeypatch: pytest.MonkeyPatch) -> No
         return True
 
     monkeypatch.setattr(event, "wait", fake_wait)
-    main.skaven_loop(files, stop_event=event)
+    main.main_loop(files, stop_event=event)
     assert call_state["waits"] >= 1
 
 
@@ -627,7 +624,9 @@ def test_main_stop_after_sets_event(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         main,
         "load_sound_categories",
-        lambda _: {k: [] for k in ["ambient", "rats", "chains", "screams", "skaven"]},
+        lambda _: {
+            k: [] for k in ["ambient", "rats", "chains", "screams", "displayboard"]
+        },
     )
     # Patch Thread to not actually start
     monkeypatch.setattr(threading.Thread, "start", lambda self: None)
@@ -636,7 +635,7 @@ def test_main_stop_after_sets_event(monkeypatch: pytest.MonkeyPatch) -> None:
     main.main(stop_after=1)
 
 
-@patch("skaven.sounds.logger")
+@patch("displayboard.sounds.logger")
 def test_main_stop_after_full(
     mock_logger: MagicMock,
     monkeypatch: pytest.MonkeyPatch,
@@ -656,7 +655,9 @@ def test_main_stop_after_full(
     monkeypatch.setattr(
         main,
         "load_sound_categories",
-        lambda _: {k: [] for k in ["ambient", "rats", "chains", "screams", "skaven"]},
+        lambda _: {
+            k: [] for k in ["ambient", "rats", "chains", "screams", "displayboard"]
+        },
     )
     # Prepare explicit event
     event = threading.Event()
@@ -689,7 +690,9 @@ def test_set_event_soon_sleeps_and_sets_event(monkeypatch: pytest.MonkeyPatch) -
     monkeypatch.setattr(
         main,
         "load_sound_categories",
-        lambda _: {k: [] for k in ["ambient", "rats", "chains", "screams", "skaven"]},
+        lambda _: {
+            k: [] for k in ["ambient", "rats", "chains", "screams", "displayboard"]
+        },
     )
     # Patch event.wait to immediately return True
     monkeypatch.setattr(threading.Event, "wait", lambda self, timeout=None: True)
@@ -703,7 +706,7 @@ def test_set_event_soon_sleeps_and_sets_event(monkeypatch: pytest.MonkeyPatch) -
 
 
 # --- Coverage for main() error/exception handling branches ---
-@patch("skaven.sounds.logger")
+@patch("displayboard.sounds.logger")
 def test_main_pygame_error_branch(
     mock_logger: MagicMock, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -716,7 +719,7 @@ def test_main_pygame_error_branch(
     mock_logger.critical.assert_called()
 
 
-@patch("skaven.sounds.logger")
+@patch("displayboard.sounds.logger")
 def test_main_generic_exception_branch(
     mock_logger: MagicMock, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -772,7 +775,7 @@ if str(PROJECT_ROOT) not in sys.path:
 # --- Additional tests for 100% coverage of sounds.py ---
 
 
-@patch("skaven.sounds.logger")
+@patch("displayboard.sounds.logger")
 def test_main_keyboard_interrupt_during_fadeout(
     mock_logger: MagicMock, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -788,7 +791,7 @@ def test_main_keyboard_interrupt_during_fadeout(
             "rats": [],
             "chains": [],
             "screams": [],
-            "skaven": [],
+            "displayboard": [],
         },
     )
     # Patch pygame.mixer.init and set_num_channels to no-op
@@ -825,7 +828,7 @@ def test_main_keyboard_interrupt_during_fadeout(
 
 
 # Covers lines 312-315, 328-329, 331-332: KeyboardInterrupt and Exception branches in main
-@patch("skaven.sounds.logger")
+@patch("displayboard.sounds.logger")
 def test_main_keyboard_interrupt_and_exception_branches(
     mock_logger: MagicMock,
     monkeypatch: pytest.MonkeyPatch,
@@ -842,7 +845,7 @@ def test_main_keyboard_interrupt_and_exception_branches(
             "rats": [],
             "chains": [],
             "screams": [Path("scream.wav")],
-            "skaven": [],
+            "displayboard": [],
         },
     )
     monkeypatch.setattr(threading.Thread, "start", lambda self: None)
@@ -908,7 +911,7 @@ def test_main_scream_loop_no_screams_branch(monkeypatch: pytest.MonkeyPatch) -> 
             "rats": [],
             "chains": [],
             "screams": [],
-            "skaven": [],
+            "displayboard": [],
         },
     )
     # Patch pygame.mixer.init and set_num_channels to no-op
@@ -946,11 +949,11 @@ def test_chains_loop_event_set_breaks(monkeypatch: pytest.MonkeyPatch) -> None:
     main.chains_loop(files, stop_event=event)
 
 
-def test_skaven_loop_event_set_breaks(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_main_loop_event_set_breaks(monkeypatch: pytest.MonkeyPatch) -> None:
     files = [Path("s1.wav")]
     event = threading.Event()
     event.set()
-    main.skaven_loop(files, stop_event=event)
+    main.main_loop(files, stop_event=event)
 
 
 def test_rats_loop_event_set_breaks(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -967,8 +970,8 @@ def test_rats_loop_event_set_breaks(monkeypatch: pytest.MonkeyPatch) -> None:
 # --- Main scream loop: event set before loop, and empty scream files ---
 
 
-@patch("skaven.sounds.threading.Thread")
-@patch("skaven.sounds.load_sound_categories")
+@patch("displayboard.sounds.threading.Thread")
+@patch("displayboard.sounds.load_sound_categories")
 def test_main_scream_loop_event_set(
     mock_load: MagicMock, mock_thread: MagicMock, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -978,15 +981,15 @@ def test_main_scream_loop_event_set(
         "rats": [Path("r.wav")],
         "chains": [Path("c.wav")],
         "screams": [Path("scream.wav")],
-        "skaven": [Path("sk.wav")],
+        "displayboard": [Path("sk.wav")],
     }
     # Patch event.wait to return True immediately (event set)
     monkeypatch.setattr(threading.Event, "wait", lambda self, timeout=None: True)
     main.main(stop_event=threading.Event())
 
 
-@patch("skaven.sounds.threading.Thread")
-@patch("skaven.sounds.load_sound_categories")
+@patch("displayboard.sounds.threading.Thread")
+@patch("displayboard.sounds.load_sound_categories")
 def test_main_scream_loop_empty_screams(
     mock_load: MagicMock, mock_thread: MagicMock, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -996,7 +999,7 @@ def test_main_scream_loop_empty_screams(
         "rats": [Path("r.wav")],
         "chains": [Path("c.wav")],
         "screams": [],
-        "skaven": [Path("sk.wav")],
+        "displayboard": [Path("sk.wav")],
     }
     # Patch event.wait to break after one loop
     call_count = {"n": 0}
@@ -1073,7 +1076,7 @@ def test_list_audio_files(fs: Any) -> None:
 
 
 def test_load_sound_categories(fs: Any) -> None:
-    categories = ["ambient", "rats", "chains", "screams", "skaven"]
+    categories = ["ambient", "rats", "chains", "screams", "displayboard"]
     for cat in categories:
         fs.create_file(f"/tmp/{cat}/{cat[0]}.wav", contents="dummy")
     cats = main.load_sound_categories(Path("/tmp"))
@@ -1143,7 +1146,7 @@ def test_chains_loop_runs(
     assert called.get("wait", False)
 
 
-def test_skaven_loop_runs(
+def test_main_loop_runs(
     monkeypatch: pytest.MonkeyPatch, dummy_event: threading.Event
 ) -> None:
     files: list[Path] = [Path("s1.wav")]
@@ -1165,7 +1168,7 @@ def test_skaven_loop_runs(
 
     try:
         with pytest.raises(BreakLoop):
-            main.skaven_loop(files, stop_event=dummy_event)
+            main.main_loop(files, stop_event=dummy_event)
     finally:
         monkeypatch.setattr(dummy_event, "wait", original_wait)
 
@@ -1265,7 +1268,7 @@ def test_chains_loop_body(monkeypatch: pytest.MonkeyPatch) -> None:
     assert calls.get("waited", 0) == 1
 
 
-def test_skaven_loop_body(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_main_loop_body(monkeypatch: pytest.MonkeyPatch) -> None:
     files = [Path("s1.wav")]
 
     class BreakLoop(Exception):
@@ -1295,7 +1298,7 @@ def test_skaven_loop_body(monkeypatch: pytest.MonkeyPatch) -> None:
 
     try:
         with pytest.raises(BreakLoop):
-            main.skaven_loop(files, stop_event=threading.Event())
+            main.main_loop(files, stop_event=threading.Event())
     finally:
         monkeypatch.setattr(threading.Event, "wait", original_wait)
         mock_sound.play.side_effect = None  # Reset side effect
@@ -1414,7 +1417,7 @@ def test_main_scream_logic_without_files(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     # Test main loop runs but doesn't play screams if none exist
-    import skaven.sounds as main  # Re-import locally if needed
+    import displayboard.sounds as main  # Re-import locally if needed
 
     class BreakLoop(Exception):
         pass
@@ -1426,7 +1429,7 @@ def test_main_scream_logic_without_files(
             rats=[],
             chains=[],
             screams=[],
-            skaven=[],
+            displayboard=[],
         )
 
     monkeypatch.setattr(main, "load_sound_categories", fake_load_sound_categories)
@@ -1473,7 +1476,7 @@ def test_main_scream_logic_without_files(
 
 def test_ambient_loop_idx_increment(monkeypatch: pytest.MonkeyPatch) -> None:
     # Test that the ambient loop index increments and wraps around
-    import skaven.sounds as main  # Re-import locally if needed
+    import displayboard.sounds as main  # Re-import locally if needed
 
     class BreakLoop(Exception):
         pass
@@ -1535,15 +1538,15 @@ def test_ambient_loop_idx_increment(monkeypatch: pytest.MonkeyPatch) -> None:
 # --- Integration tests for error handling and main function ---
 
 
-@patch("skaven.sounds.threading.Thread")
-@patch("skaven.sounds.load_sound_categories")
-@patch("skaven.sounds.ambient_loop")
-@patch("skaven.sounds.chains_loop")
-@patch("skaven.sounds.skaven_loop")
-@patch("skaven.sounds.rats_loop")
+@patch("displayboard.sounds.threading.Thread")
+@patch("displayboard.sounds.load_sound_categories")
+@patch("displayboard.sounds.ambient_loop")
+@patch("displayboard.sounds.chains_loop")
+@patch("displayboard.sounds.main_loop")
+@patch("displayboard.sounds.rats_loop")
 def test_main_starts_loops(
     mock_rats_loop: MagicMock,
-    mock_skaven_loop: MagicMock,
+    mock_main_loop: MagicMock,
     mock_chains_loop: MagicMock,
     mock_ambient_loop: MagicMock,
     mock_load_cats: MagicMock,
@@ -1556,7 +1559,7 @@ def test_main_starts_loops(
         "rats": [Path("r.wav")],
         "chains": [Path("c.wav")],
         "screams": [Path("scream.wav")],
-        "skaven": [Path("sk.wav")],
+        "displayboard": [Path("sk.wav")],
     }
 
     # Pygame mocks are handled by the fixture
@@ -1584,13 +1587,13 @@ def test_main_starts_loops(
 
     # Assertions
     mock_load_cats.assert_called_once()
-    assert mock_thread.call_count == 4  # ambient, chains, skaven, rats
+    assert mock_thread.call_count == 4  # ambient, chains, main, rats
 
     # Check that each loop function was passed as a target to a Thread
     thread_targets = {call.kwargs["target"] for call in mock_thread.call_args_list}
     assert mock_ambient_loop in thread_targets
     assert mock_chains_loop in thread_targets
-    assert mock_skaven_loop in thread_targets
+    assert mock_main_loop in thread_targets
     assert mock_rats_loop in thread_targets
 
     # Check that start was called for each thread instance
@@ -1613,17 +1616,17 @@ def test_main_starts_loops(
     assert isinstance(ambient_call.kwargs["args"][3], threading.Event)
 
 
-@patch("skaven.sounds.threading.Thread")
-@patch("skaven.sounds.load_sound_categories")
-@patch("skaven.sounds.ambient_loop")
-@patch("skaven.sounds.chains_loop")
-@patch("skaven.sounds.skaven_loop")
-@patch("skaven.sounds.rats_loop")
-@patch("skaven.sounds.logger")
+@patch("displayboard.sounds.threading.Thread")
+@patch("displayboard.sounds.load_sound_categories")
+@patch("displayboard.sounds.ambient_loop")
+@patch("displayboard.sounds.chains_loop")
+@patch("displayboard.sounds.main_loop")
+@patch("displayboard.sounds.rats_loop")
+@patch("displayboard.sounds.logger")
 def test_main_keyboard_interrupt(
     mock_logger: MagicMock,
     mock_rats: MagicMock,
-    mock_skaven: MagicMock,
+    mock_main: MagicMock,
     mock_chains: MagicMock,
     mock_ambient: MagicMock,
     mock_load: MagicMock,
@@ -1636,7 +1639,7 @@ def test_main_keyboard_interrupt(
         "rats": [Path("r.wav")],
         "chains": [Path("c.wav")],
         "screams": [Path("scream.wav")],
-        "skaven": [Path("sk.wav")],
+        "displayboard": [Path("sk.wav")],
     }
 
     # Pygame mocks handled by fixture
@@ -1681,7 +1684,7 @@ def test_main_keyboard_interrupt(
         rat_chan.fadeout.assert_called_with(config.MAIN_RATS_FADEOUT_MS)
 
 
-@patch("skaven.sounds.logger")
+@patch("displayboard.sounds.logger")
 def test_main_no_sound_dir(
     mock_logger: MagicMock, fs: Any, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -1720,7 +1723,7 @@ def test_main_no_sound_dir(
     # Let's assume silent exit is okay if no sounds are found.
 
 
-@patch("skaven.sounds.logger")
+@patch("displayboard.sounds.logger")
 def test_main_pygame_init_error(
     mock_logger: MagicMock, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -1739,7 +1742,7 @@ def test_main_pygame_init_error(
     # But we verified the exception is raised
 
 
-@patch("skaven.sounds.logger")
+@patch("displayboard.sounds.logger")
 def test_main_generic_exception(
     mock_logger: MagicMock, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -1758,17 +1761,17 @@ def test_main_generic_exception(
 
 # This test combines aspects of the original test_main_function_integration
 # but uses patching correctly for assertions.
-@patch("skaven.sounds.logger")
-@patch("skaven.sounds.load_sound_categories")
-@patch("skaven.sounds.ambient_loop")  # Patch loops to prevent actual execution
-@patch("skaven.sounds.chains_loop")
-@patch("skaven.sounds.skaven_loop")
-@patch("skaven.sounds.rats_loop")
-@patch("skaven.sounds.threading.Thread")  # Patch Thread to check calls
+@patch("displayboard.sounds.logger")
+@patch("displayboard.sounds.load_sound_categories")
+@patch("displayboard.sounds.ambient_loop")  # Patch loops to prevent actual execution
+@patch("displayboard.sounds.chains_loop")
+@patch("displayboard.sounds.main_loop")
+@patch("displayboard.sounds.rats_loop")
+@patch("displayboard.sounds.threading.Thread")  # Patch Thread to check calls
 def test_main_integration_setup_teardown(
     mock_thread: MagicMock,
     mock_rats_loop: MagicMock,
-    mock_skaven_loop: MagicMock,
+    mock_main_loop: MagicMock,
     mock_chains_loop: MagicMock,
     mock_ambient_loop: MagicMock,
     mock_load_cats: MagicMock,
@@ -1782,7 +1785,7 @@ def test_main_integration_setup_teardown(
         "rats": [tmp_path / "r.wav"],
         "chains": [tmp_path / "c.wav"],
         "screams": [tmp_path / "scream.wav"],
-        "skaven": [tmp_path / "sk.wav"],
+        "displayboard": [tmp_path / "sk.wav"],
     }
     # Mock config.SOUNDS_DIR to use tmp_path
     monkeypatch.setattr(config, "SOUNDS_DIR", tmp_path)
@@ -1852,7 +1855,7 @@ def test_chains_loop_breaks_on_event(monkeypatch: pytest.MonkeyPatch) -> None:
     main.chains_loop(files, stop_event=event)
 
 
-def test_skaven_loop_breaks_on_event(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_main_loop_breaks_on_event(monkeypatch: pytest.MonkeyPatch) -> None:
     files = [Path("s1.wav")]
     event = threading.Event()
     event.set()
@@ -1862,7 +1865,7 @@ def test_skaven_loop_breaks_on_event(monkeypatch: pytest.MonkeyPatch) -> None:
 
     monkeypatch.setattr(event, "wait", fake_wait)
     monkeypatch.setattr(event, "is_set", lambda: True)
-    main.skaven_loop(files, stop_event=event)
+    main.main_loop(files, stop_event=event)
 
 
 def test_rats_loop_breaks_on_event_after_fadeout(
@@ -1884,15 +1887,15 @@ def test_rats_loop_breaks_on_event_after_fadeout(
     main.rats_loop(files, chans, stop_event=event)
 
 
-@patch("skaven.sounds.threading.Thread")
-@patch("skaven.sounds.load_sound_categories")
-@patch("skaven.sounds.ambient_loop")
-@patch("skaven.sounds.chains_loop")
-@patch("skaven.sounds.skaven_loop")
-@patch("skaven.sounds.rats_loop")
+@patch("displayboard.sounds.threading.Thread")
+@patch("displayboard.sounds.load_sound_categories")
+@patch("displayboard.sounds.ambient_loop")
+@patch("displayboard.sounds.chains_loop")
+@patch("displayboard.sounds.main_loop")
+@patch("displayboard.sounds.rats_loop")
 def test_main_scream_logic_with_files(
     mock_rats: MagicMock,
-    mock_skaven: MagicMock,
+    mock_main: MagicMock,
     mock_chains: MagicMock,
     mock_ambient: MagicMock,
     mock_load: MagicMock,
@@ -1904,7 +1907,7 @@ def test_main_scream_logic_with_files(
         "rats": [Path("r.wav")],
         "chains": [Path("c.wav")],
         "screams": [Path("scream.wav")],
-        "skaven": [Path("sk.wav")],
+        "displayboard": [Path("sk.wav")],
     }
     call_count = {"n": 0}
 
@@ -1962,14 +1965,14 @@ def test_sounds_py_entry_subprocess() -> None:
     # so we accept any nonzero exit code, but the test must not hang or time out.
     try:
         result = subprocess.run(
-            [sys.executable, "-m", "skaven.sounds", "--test-exit"],
+            [sys.executable, "-m", "displayboard.sounds", "--test-exit"],
             env={**os.environ, "PYTHONPATH": "src"},
             capture_output=True,
             text=True,
             timeout=5,  # Lower timeout to fail faster if it hangs
         )
     except subprocess.TimeoutExpired:
-        pytest.fail("Running 'python -m skaven.sounds' hung or timed out")
+        pytest.fail("Running 'python -m displayboard.sounds' hung or timed out")
     # Accept any exit code, but assert that it did not hang
     assert isinstance(result.returncode, int)
     # Optionally, print output for debugging if needed

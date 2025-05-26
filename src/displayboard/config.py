@@ -18,7 +18,7 @@ LOOP_WAIT_TIMEOUT = 0.1  # General timeout for event.wait() in loops
 MAIN_LOOP_SLEEP_S = 1.0  # Sleep interval for main loop when video is disabled
 
 # --- Video ---
-VIDEO_FILE = VIDEO_DIR / "skaven_loop.mp4"
+VIDEO_FILE = VIDEO_DIR / "main_loop.mp4"
 PROCESS_WAIT_TIMEOUT = 5  # Seconds to wait for video process to terminate
 
 # --- Audio ---
@@ -36,11 +36,11 @@ CHAINS_SLEEP_MAX = 120
 CHAINS_VOLUME_MIN = 0.0
 CHAINS_VOLUME_MAX = 0.5
 
-# --- Skaven Loop ---
-SKAVEN_SLEEP_MIN = 20
-SKAVEN_SLEEP_MAX = 40
-SKAVEN_VOLUME_MIN = 0.0
-SKAVEN_VOLUME_MAX = 1.0
+# --- Main Loop ---
+MAIN_LOOP_SLEEP_MIN = 20
+MAIN_LOOP_SLEEP_MAX = 40
+MAIN_LOOP_VOLUME_MIN = 0.0
+MAIN_LOOP_VOLUME_MAX = 1.0
 
 # --- Rats Loop ---
 RATS_FADEOUT_MS = 500
@@ -63,7 +63,7 @@ LED_PIN_BCM = (
 LED_BRIGHTNESS = 0.4
 LED_ORDER = "GRB"  # Color order for NeoPixels
 
-# --- Skaven Flicker/Breathe Effect ---
+# --- Flicker/Breathe Effect ---
 LIGHTING_UPDATE_INTERVAL = 0.05  # Seconds between updates
 LIGHTING_BREATHE_FREQUENCY = 0.5  # Controls speed of breathing effect
 LIGHTING_BREATHE_MIN_BRIGHTNESS = 0.2  # Minimum brightness (0.0 to 1.0)

@@ -1,5 +1,5 @@
 """
-Video loop system for Skaven project.
+Video loop system for diorama projects.
 
 This module provides functions for checking MPV installation, playing video loops, and handling
 video process errors. All public functions are type-annotated and documented for clarity and
@@ -27,7 +27,6 @@ import threading
 from typing import Optional
 import platform
 import logging
-
 from . import config
 
 logger = logging.getLogger(__name__)

@@ -5,7 +5,7 @@ import pytest
 def test_volume(vol: float) -> None:
     # Sound volume moved to config.py as SOUND_VOLUME_DEFAULT
 
-    from skaven import config
+    from displayboard import config
 
     setattr(config, "SOUND_VOLUME_DEFAULT", vol)
     assert isinstance(config.SOUND_VOLUME_DEFAULT, float)
