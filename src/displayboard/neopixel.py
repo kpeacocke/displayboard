@@ -10,7 +10,7 @@ __all__ = ["NeoPixel", "GRB"]
 
 import sys
 import logging
-from typing import Any, Tuple, Optional
+from typing import Any, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +19,7 @@ if sys.platform == "linux":
     try:
         import board  # type: ignore
         import neopixel as real_neopixel  # type: ignore
+
         HAS_NEOPIXEL = True
         logger.info("NeoPixel hardware support loaded")
     except (ImportError, NotImplementedError) as e:
