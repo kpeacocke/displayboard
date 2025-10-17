@@ -107,7 +107,17 @@ jobs:
           fi
 
           # Create requirements.txt for easier pip installation
-          poetry export -f requirements.txt --output deployment-package/requirements.txt --without-hashes
+          # Create a basic requirements.txt with main dependencies
+          cat > deployment-package/requirements.txt << 'EOF'
+          pygame>=2.5.2
+          python-dotenv>=1.1.0
+          gpiozero>=2.0.1
+          pigpio>=1.78
+          # Raspberry Pi specific dependencies (will be installed on Linux only)
+          rpi-ws281x>=5.0.0; sys_platform == "linux"
+          adafruit-circuitpython-neopixel>=6.3.11; sys_platform == "linux"
+          rpi-gpio; sys_platform == "linux"
+          EOF
 
           # Create setup script
           cat > deployment-package/setup.sh << 'EOF'
