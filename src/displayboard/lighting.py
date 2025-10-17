@@ -19,7 +19,9 @@ logger = logging.getLogger(__name__)
 
 # Lighting now always uses config.LED_PIN_BCM (default: 21). Pin 18 is reserved for bell.
 led_pin_to_use = config.LED_PIN_BCM
-logger.info(f"Initializing NeoPixel on pin {led_pin_to_use} with {config.LED_COUNT} LEDs")
+logger.info(
+    f"Initializing NeoPixel on pin {led_pin_to_use} with {config.LED_COUNT} LEDs"
+)
 pixels = NeoPixel(
     led_pin_to_use,  # Use determined pin
     config.LED_COUNT,
