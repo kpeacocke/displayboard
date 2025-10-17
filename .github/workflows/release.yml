@@ -50,6 +50,15 @@ jobs:
     if: ${{ needs.validate.outputs.passed == 'true' }}
     steps:
       - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.9"
+      - name: Install Poetry
+        run: |
+          curl -sSL https://install.python-poetry.org | python3 -
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+      - name: Install dependencies
+        run: poetry install --only=main
       - name: Install Git config
         run: |
           git config user.name "GitHub Actions"
@@ -72,10 +81,307 @@ jobs:
           git push origin "$next_tag"
           echo "tag=$next_tag" >> $GITHUB_OUTPUT
 
+      - name: Create deployment package
+        run: |
+          # Create deployment directory
+          mkdir -p deployment-package
+
+          # Copy source code
+          cp -r src/ deployment-package/
+
+          # Copy configuration files
+          cp pyproject.toml deployment-package/
+          cp pyrightconfig.json deployment-package/
+          cp README.md deployment-package/
+          cp LICENSE deployment-package/
+          cp makefile deployment-package/
+          cp .env.example deployment-package/
+
+          # Copy setup configuration
+          cp setup.cfg deployment-package/
+
+          # Create assets directory structure and copy any existing assets
+          mkdir -p deployment-package/src/assets/{sounds,video}
+          if [ -d "src/assets" ]; then
+            cp -r src/assets/* deployment-package/src/assets/ 2>/dev/null || true
+          fi
+
+          # Create requirements.txt for easier pip installation
+          poetry export -f requirements.txt --output deployment-package/requirements.txt --without-hashes
+
+          # Create setup script
+          cat > deployment-package/setup.sh << 'EOF'
+          #!/bin/bash
+          # Displayboard Setup Script for Raspberry Pi
+
+          set -e
+
+          echo "🎵 Setting up Displayboard Soundscape..."
+
+          # Update system
+          echo "📦 Updating system packages..."
+          sudo apt update
+
+          # Install system dependencies
+          echo "🔧 Installing system dependencies..."
+          sudo apt install -y python3-pip python3-dev libasound2-dev python3-pygame python3-venv
+
+          # Install Python dependencies
+          echo "🐍 Installing Python dependencies..."
+
+          # Create virtual environment if it doesn't exist
+          if [ ! -d "venv" ]; then
+              python3 -m venv venv
+          fi
+
+          # Activate virtual environment and install dependencies
+          source venv/bin/activate
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -e .
+
+          # Create assets directories
+          echo "📁 Creating asset directories..."
+          mkdir -p src/assets/sounds/{ambient,rats,chains,screams,bell}
+          mkdir -p src/assets/video
+
+          # Copy environment file
+          if [ ! -f ".env" ]; then
+              cp .env.example .env
+              echo "📝 Created .env file - please edit as needed"
+          fi
+
+          echo "✅ Setup complete!"
+          echo ""
+          echo "📋 Next steps:"
+          echo "1. Add your sound files to src/assets/sounds/"
+          echo "2. Add your video files to src/assets/video/"
+          echo "3. Edit .env file if needed"
+          echo "4. Test with: source venv/bin/activate && python -m displayboard.main --verbose"
+          echo ""
+          echo "🚀 To install as system service, run: sudo ./install-service.sh"
+          EOF
+
+          chmod +x deployment-package/setup.sh
+
+          # Create service installation script
+          cat > deployment-package/install-service.sh << 'EOF'
+          #!/bin/bash
+          # Install Displayboard as systemd service
+
+          set -e
+
+          INSTALL_DIR="/opt/displayboard"
+          CURRENT_DIR="$(pwd)"
+
+          echo "🚀 Installing Displayboard as system service..."
+
+          # Copy files to /opt/displayboard
+          echo "📁 Copying files to $INSTALL_DIR..."
+          sudo mkdir -p "$INSTALL_DIR"
+          sudo cp -r . "$INSTALL_DIR/"
+          sudo chown -R pi:pi "$INSTALL_DIR"
+
+          # Install dependencies in the target location
+          echo "🐍 Installing dependencies in target location..."
+          cd "$INSTALL_DIR"
+
+          if [ ! -d "venv" ]; then
+              sudo -u pi python3 -m venv venv
+          fi
+
+          sudo -u pi bash -c "source venv/bin/activate && pip install --upgrade pip && pip install -r requirements.txt && pip install -e ."
+
+          # Create systemd service
+          echo "⚙️ Creating systemd service..."
+          sudo tee /etc/systemd/system/displayboard.service << 'SERVICE'
+          [Unit]
+          Description=Displayboard Soundscape
+          After=network.target sound.target
+
+          [Service]
+          Type=simple
+          User=pi
+          WorkingDirectory=/opt/displayboard
+          ExecStart=/opt/displayboard/venv/bin/python -m displayboard.main
+          Restart=always
+          RestartSec=5
+          Environment=PYTHONPATH=/opt/displayboard/src
+
+          [Install]
+          WantedBy=multi-user.target
+          SERVICE
+
+          # Enable and start service
+          echo "🔄 Enabling and starting service..."
+          sudo systemctl daemon-reload
+          sudo systemctl enable displayboard.service
+
+          echo "✅ Service installed successfully!"
+          echo ""
+          echo "📋 Service commands:"
+          echo "  Start:   sudo systemctl start displayboard.service"
+          echo "  Stop:    sudo systemctl stop displayboard.service"
+          echo "  Status:  sudo systemctl status displayboard.service"
+          echo "  Logs:    sudo journalctl -u displayboard.service -f"
+
+          cd "$CURRENT_DIR"
+          EOF
+
+          chmod +x deployment-package/install-service.sh
+
+          # Create deployment instructions
+          cat > deployment-package/DEPLOYMENT.md << 'EOF'
+          # Displayboard Deployment Instructions
+
+          ## Prerequisites
+          - Raspberry Pi with Raspberry Pi OS
+          - Python 3.9+
+          - Internet connection for dependency installation
+
+          ## Quick Installation (Recommended)
+
+          1. Extract this package:
+             ```bash
+             tar -xzf displayboard-deployment-${{ steps.tagger.outputs.tag }}.tar.gz
+             cd displayboard-deployment-${{ steps.tagger.outputs.tag }}
+             ```
+
+          2. Run the automated setup:
+             ```bash
+             ./setup.sh
+             ```
+
+          3. Add your media files:
+             ```bash
+             # Add sound files to the appropriate directories:
+             # - src/assets/sounds/ambient/
+             # - src/assets/sounds/rats/
+             # - src/assets/sounds/chains/
+             # - src/assets/sounds/screams/
+             # - src/assets/sounds/bell/
+
+             # Add video files to:
+             # - src/assets/video/
+             ```
+
+          4. Test the installation:
+             ```bash
+             source venv/bin/activate
+             python -m displayboard.main --no-bell --no-lighting --verbose
+             ```
+
+          5. Install as system service (optional):
+             ```bash
+             sudo ./install-service.sh
+             ```
+
+          ## Manual Installation
+
+          If you prefer manual installation or need to customize the process:
+
+          1. Install system dependencies:
+             ```bash
+             sudo apt update
+             sudo apt install python3-pip python3-dev libasound2-dev python3-pygame python3-venv
+             ```
+
+          2. Create virtual environment and install Python dependencies:
+             ```bash
+             python3 -m venv venv
+             source venv/bin/activate
+             pip install --upgrade pip
+             pip install -r requirements.txt
+             pip install -e .
+             ```
+
+          3. Configure environment:
+             ```bash
+             cp .env.example .env
+             # Edit .env as needed
+             ```
+
+          4. Create asset directories and add media files:
+             ```bash
+             mkdir -p src/assets/sounds/{ambient,rats,chains,screams,bell}
+             mkdir -p src/assets/video
+             # Copy your media files to these directories
+             ```
+
+          ## Configuration
+
+          Edit the `.env` file to customize behavior:
+          - `SOUND_VOLUME`: Audio volume (0.0-1.0)
+          - `USE_GPIO`: Enable/disable GPIO features
+          - `DEBUG_MODE`: Enable debug logging
+
+          ## Hardware Setup
+
+          Default GPIO pin assignments:
+          - **GPIO21**: LED strip (WS281x/NeoPixel) - configurable in config.py
+          - **GPIO18**: Bell servo - configurable in config.py
+          - **Audio**: Default ALSA audio device
+          - **Video**: HDMI output
+
+          ## Troubleshooting
+
+          ### Audio Issues
+          ```bash
+          # Test audio system
+          aplay /usr/share/sounds/alsa/Front_Left.wav
+
+          # Check audio devices
+          aplay -l
+          ```
+
+          ### GPIO Permission Issues
+          ```bash
+          # Add user to gpio group
+          sudo usermod -a -G gpio pi
+
+          # Or run with sudo (not recommended for production)
+          sudo python -m displayboard.main
+          ```
+
+          ### Service Issues
+          ```bash
+          # Check service status
+          sudo systemctl status displayboard.service
+
+          # View logs
+          sudo journalctl -u displayboard.service -f
+
+          # Restart service
+          sudo systemctl restart displayboard.service
+          ```
+
+          ## Command Line Options
+
+          ```bash
+          python -m displayboard.main --help
+
+          # Disable specific components for testing:
+          python -m displayboard.main --no-bell --no-lighting --no-video
+
+          # Enable verbose logging:
+          python -m displayboard.main --verbose
+
+          # Enable debug logging:
+          python -m displayboard.main --debug
+          ```
+
+          See README.md for detailed usage and development information.
+          EOF
+
+          # Create the deployment tarball
+          tar -czf displayboard-deployment-${{ steps.tagger.outputs.tag }}.tar.gz -C deployment-package .
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.tagger.outputs.tag }}
           generate_release_notes: true
+          files: |
+            displayboard-deployment-${{ steps.tagger.outputs.tag }}.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
