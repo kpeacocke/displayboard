@@ -20,7 +20,6 @@ __all__ = [
     "threading",
     "config",
 ]
-from dotenv import load_dotenv
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence
 import os
@@ -33,8 +32,7 @@ from . import config
 
 logger = logging.getLogger(__name__)
 
-load_dotenv()
-
+# Environment variables are loaded in config.py via load_dotenv()
 USE_GPIO = os.getenv("USE_GPIO", "false").lower() == "true"
 DEBUG_MODE = os.environ.get("DEBUG_MODE", "false").lower() == "true"
 # SOUND_VOLUME is now handled via config.SOUND_VOLUME_DEFAULT where needed
