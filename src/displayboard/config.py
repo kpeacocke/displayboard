@@ -4,7 +4,26 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
-load_dotenv()
+# Search for .env in multiple locations:
+# 1. Current working directory
+# 2. User's home directory
+# 3. /opt/displayboard (common deployment location)
+dotenv_locations = [
+    Path.cwd() / ".env",
+    Path.home() / ".env",
+    Path("/opt/displayboard/.env"),
+    Path("/opt/displayboard/current/.env"),
+]
+
+loaded_dotenv = None
+for dotenv_path in dotenv_locations:
+    if dotenv_path.exists():
+        load_dotenv(dotenv_path=dotenv_path, override=True)
+        loaded_dotenv = dotenv_path
+        break
+else:
+    # No .env file found, load from environment
+    load_dotenv()
 
 # --- Paths ---
 BASE_DIR = Path(__file__).resolve().parent
@@ -14,6 +33,14 @@ BASE_DIR = Path(__file__).resolve().parent
 ASSETS_DIR = Path(os.getenv("DISPLAYBOARD_ASSETS_DIR", BASE_DIR.parent / "assets"))
 SOUNDS_DIR = Path(os.getenv("DISPLAYBOARD_SOUNDS_DIR", ASSETS_DIR / "sounds"))
 VIDEO_DIR = Path(os.getenv("DISPLAYBOARD_VIDEO_DIR", ASSETS_DIR / "video"))
+
+# Log configuration on module load (only visible with verbose logging)
+_logger = logging.getLogger(__name__)
+if loaded_dotenv:
+    _logger.debug(f"Loaded environment from: {loaded_dotenv}")
+_logger.debug(f"ASSETS_DIR: {ASSETS_DIR}")
+_logger.debug(f"SOUNDS_DIR: {SOUNDS_DIR}")
+_logger.debug(f"VIDEO_DIR: {VIDEO_DIR}")
 
 # --- Logging ---
 LOG_LEVEL_DEFAULT = logging.INFO
