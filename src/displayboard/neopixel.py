@@ -17,20 +17,20 @@ logger = logging.getLogger(__name__)
 # Try to import real NeoPixel libraries on Linux
 if sys.platform == "linux":
     try:
-        import board  # type: ignore
-        import neopixel as real_neopixel  # type: ignore
+        import board
+        import neopixel as real_neopixel
 
         HAS_NEOPIXEL = True
         logger.info("NeoPixel hardware support loaded")
     except (ImportError, NotImplementedError) as e:
         HAS_NEOPIXEL = False
-        board = None  # type: ignore
-        real_neopixel = None  # type: ignore
+        board = None
+        real_neopixel = None
         logger.warning(f"NeoPixel hardware not available: {e}")
 else:
     HAS_NEOPIXEL = False
-    board = None  # type: ignore
-    real_neopixel = None  # type: ignore
+    board = None
+    real_neopixel = None
     logger.info("Running on non-Linux platform, using NeoPixel stub")
 
 # LED color order
@@ -67,10 +67,10 @@ class NeoPixel:
             try:
                 # Map BCM pin numbers to board pins
                 pin_map = {
-                    18: board.D18,  # type: ignore
-                    21: board.D21,  # type: ignore
-                    12: board.D12,  # type: ignore
-                    10: board.D10,  # type: ignore
+                    18: board.D18,
+                    21: board.D21,
+                    12: board.D12,
+                    10: board.D10,
                 }
 
                 board_pin = pin_map.get(pin)
@@ -80,7 +80,7 @@ class NeoPixel:
                     return
 
                 # Initialize real NeoPixel strip
-                self._pixels = real_neopixel.NeoPixel(  # type: ignore
+                self._pixels = real_neopixel.NeoPixel(
                     board_pin,
                     count,
                     brightness=brightness,
