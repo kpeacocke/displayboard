@@ -165,7 +165,9 @@ jobs:
           echo ""
           echo "📋 Next steps:"
           echo "1. Add your sound files to src/assets/sounds/"
+          echo "   (or set DISPLAYBOARD_SOUNDS_DIR in .env for custom location)"
           echo "2. Add your video files to src/assets/video/"
+          echo "   (or set DISPLAYBOARD_VIDEO_DIR in .env for custom location)"
           echo "3. Edit .env file if needed"
           echo "4. Test with: source venv/bin/activate && python -m displayboard.main --verbose"
           echo ""
@@ -217,6 +219,7 @@ jobs:
           Restart=always
           RestartSec=5
           Environment=PYTHONPATH=/opt/displayboard/src
+          EnvironmentFile=-/opt/displayboard/.env
 
           [Install]
           WantedBy=multi-user.target
@@ -324,6 +327,21 @@ jobs:
           - `SOUND_VOLUME`: Audio volume (0.0-1.0)
           - `USE_GPIO`: Enable/disable GPIO features
           - `DEBUG_MODE`: Enable debug logging
+          - `DISPLAYBOARD_ASSETS_DIR`: Custom path for all assets (optional)
+          - `DISPLAYBOARD_SOUNDS_DIR`: Custom path for sound files (optional)
+          - `DISPLAYBOARD_VIDEO_DIR`: Custom path for video files (optional)
+
+          ### Custom Media Paths
+
+          To store media files in a custom location (e.g., external storage):
+
+          ```bash
+          # In .env file:
+          DISPLAYBOARD_ASSETS_DIR=/media/usb/displayboard/assets
+          # or specify individual directories:
+          DISPLAYBOARD_SOUNDS_DIR=/media/usb/sounds
+          DISPLAYBOARD_VIDEO_DIR=/media/usb/video
+          ```
 
           ## Hardware Setup
 

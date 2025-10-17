@@ -1,11 +1,15 @@
 import logging
+import os
 from pathlib import Path
 
 # --- Paths ---
 BASE_DIR = Path(__file__).resolve().parent
-ASSETS_DIR = BASE_DIR.parent / "assets"
-SOUNDS_DIR = ASSETS_DIR / "sounds"
-VIDEO_DIR = ASSETS_DIR / "video"
+
+# Allow custom assets directory via environment variable
+# Defaults to src/assets relative to the package
+ASSETS_DIR = Path(os.getenv("DISPLAYBOARD_ASSETS_DIR", BASE_DIR.parent / "assets"))
+SOUNDS_DIR = Path(os.getenv("DISPLAYBOARD_SOUNDS_DIR", ASSETS_DIR / "sounds"))
+VIDEO_DIR = Path(os.getenv("DISPLAYBOARD_VIDEO_DIR", ASSETS_DIR / "video"))
 
 # --- Logging ---
 LOG_LEVEL_DEFAULT = logging.INFO
