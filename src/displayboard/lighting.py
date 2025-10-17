@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 
 # Lighting now always uses config.LED_PIN_BCM (default: 21). Pin 18 is reserved for bell.
 led_pin_to_use = config.LED_PIN_BCM
+logger.info(f"Initializing NeoPixel on pin {led_pin_to_use} with {config.LED_COUNT} LEDs")
 pixels = NeoPixel(
     led_pin_to_use,  # Use determined pin
     config.LED_COUNT,
@@ -26,6 +27,7 @@ pixels = NeoPixel(
     auto_write=False,
     pixel_order=config.LED_ORDER,  # Use config string directly
 )
+logger.info("Lighting module initialized")
 __all__ = [
     "flicker_breathe",
     "pixels",
@@ -42,6 +44,7 @@ def flicker_breathe(stop_event: Optional[threading.Event] = None) -> None:
     Args:
         stop_event: Optional threading.Event to allow graceful shutdown.
     """
+    logger.info("Starting flicker/breathe lighting effect")
     t_start: float = time.time()
     event: threading.Event = stop_event or threading.Event()
     try:
