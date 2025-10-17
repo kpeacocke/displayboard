@@ -85,7 +85,7 @@ class NeoPixel:
                     count,
                     brightness=brightness,
                     auto_write=auto_write,
-                    pixel_order=pixel_order
+                    pixel_order=pixel_order,
                 )
                 msg = f"NeoPixel strip initialized on pin {pin} with {count} LEDs"
                 logger.info(msg)
