@@ -1,6 +1,6 @@
 # Quick Fix for NeoPixel Permission Denied
 
-## On Your Raspberry Pi RIGHT NOW:
+## On Your Raspberry Pi RIGHT NOW
 
 ```bash
 # 1. Navigate to your project
@@ -39,7 +39,7 @@ poetry run python -m displayboard.main --no-video --no-sounds --no-bell -d
 poetry run python -m displayboard.main -d
 ```
 
-## Or Use the Automated Script:
+## Or Use the Automated Script
 
 ```bash
 cd /path/to/displayboard
@@ -47,21 +47,22 @@ sudo bash deployment/setup-permissions.sh
 # Then log out and back in
 ```
 
-## Quick Test Command:
+## Quick Test Command
 
 After setting permissions, test NeoPixels only:
-```bash
+
+```bas
 poetry run python -m displayboard.main --no-video --no-sounds --no-bell -d
 ```
 
-## If You Still Get Permission Errors:
+## If You Still Get Permission Errors
 
 1. ✅ Did you log out and back in? (Required!)
 2. ✅ Check: `groups` shows `gpio` and `video`
 3. ✅ Check: `ls -l /dev/mem` shows group `gpio`
 4. 🔄 Try rebooting: `sudo reboot`
 
-## Temporary Workaround (if you can't log out now):
+## Temporary Workaround (if you can't log out now)
 
 ```bash
 # This works but requires sudo each time
