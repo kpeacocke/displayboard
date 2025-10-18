@@ -42,7 +42,7 @@ servo: Optional[Servo] = None
 # Initialize pygame mixer only when needed (not at import time)
 def ensure_pygame_mixer_initialized() -> None:
     """
-    Ensure pygame.mixer is initialized. Log and raise if it fails.
+    Ensure pygame.mixer is initialized. Log and continue if it fails.
     """
     if not pygame.mixer.get_init():  # pragma: no cover
         try:
@@ -50,7 +50,8 @@ def ensure_pygame_mixer_initialized() -> None:
             logger.info("Pygame mixer initialized.")
         except pygame.error as e:
             logger.error(f"Failed to initialize pygame mixer: {e}")
-            raise
+            logger.warning("Bell audio will be disabled")
+            # Don't raise - allow bell servo to continue working
 
 
 def start_sound() -> None:  # Removed filename argument
@@ -63,7 +64,19 @@ def start_sound() -> None:  # Removed filename argument
     if not getattr(config, "BELL_SOUND_FILE", None):  # pragma: no cover
         logger.warning("Bell sound file not configured")
         return
-    ensure_pygame_mixer_initialized()
+
+    # Try to initialize audio, but don't fail if it doesn't work
+    try:
+        ensure_pygame_mixer_initialized()
+    except pygame.error:
+        logger.warning("Audio not available, skipping bell sound")
+        return
+
+    # Check if mixer is actually initialized after ensure call
+    if not pygame.mixer.get_init():
+        logger.debug("Pygame mixer not initialized, skipping bell sound")
+        return
+
     # Compute random position and volume using config ranges
     start_pos: int = random.randint(
         config.BELL_SOUND_START_POS_MIN, config.BELL_SOUND_START_POS_MAX
@@ -89,7 +102,11 @@ def stop_sound(_: Optional[None] = None) -> None:
         _: Unused; present for compatibility with some callback signatures.
     """
     try:
-        ensure_pygame_mixer_initialized()
+        # Check if mixer is available before attempting to stop
+        if not pygame.mixer.get_init():
+            logger.debug("Pygame mixer not initialized, nothing to stop")
+            return
+
         if pygame.mixer.music.get_busy():
             pygame.mixer.music.stop()
             logger.info("🔇 Sound stopped.")

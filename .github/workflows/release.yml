@@ -229,6 +229,10 @@ jobs:
           Environment="XDG_RUNTIME_DIR=/run/user/%U"
           EnvironmentFile=-/opt/displayboard/.env
 
+          # Allow access to audio devices and temporary files
+          SupplementaryGroups=audio
+          # Note: PrivateTmp=true can cause PulseAudio symlink issues - not enabled
+
           [Install]
           WantedBy=multi-user.target
           SERVICE

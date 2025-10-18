@@ -242,8 +242,16 @@ def main(
 
     try:
         pygame.init()
-        pygame.mixer.init()
-        pygame.mixer.set_num_channels(config.SOUND_NUM_CHANNELS)  # Use config
+        try:
+            pygame.mixer.init()
+            pygame.mixer.set_num_channels(config.SOUND_NUM_CHANNELS)  # Use config
+        except pygame.error as e:
+            logger.error(f"Failed to initialize audio system: {e}")
+            logger.warning("Continuing without audio support")
+            # Signal event to allow graceful exit if audio is critical
+            if stop_event:
+                event.set()
+            return
 
         sounds_dir = config.SOUNDS_DIR  # Use config path
         cats = load_sound_categories(sounds_dir)
