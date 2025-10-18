@@ -67,6 +67,8 @@ def run_video_loop(
     while not event.wait(timeout=config.LOOP_WAIT_TIMEOUT):
         process = handle_video_process(process)  # pragma: no cover
         if process is None:
+            # Video failed to start or was intentionally disabled; exit the loop
+            logger.info("Video loop disabled due to initialization failure.")
             break
         last_proc = process
     return last_proc
@@ -86,7 +88,27 @@ def handle_video_process(
                 "--no-terminal",
                 str(config.VIDEO_FILE),  # Always use str for subprocess
             ]
-            return subprocess.Popen(cmd)
+            try:
+                new_process = subprocess.Popen(cmd)
+                # Give mpv a moment to initialize and check if it crashes immediately
+                time.sleep(0.1)
+                if new_process.poll() is not None:
+                    # Process died immediately, likely display/hardware issue
+                    logger.error(
+                        "mpv process died immediately after starting (exit code: %s). "
+                        "This may indicate display unavailable or video hardware issues.",
+                        new_process.returncode,
+                    )
+                    logger.warning("Video playback will be disabled.")
+                    return None
+                return new_process
+            except OSError as e:
+                # Catch OSError which includes permission errors, display errors, etc.
+                logger.error(
+                    "Failed to start mpv process: %s. Video playback will be disabled.",
+                    e,
+                )
+                return None
     except FileNotFoundError as e:
         logger.error(
             "mpv command not found. Please ensure it is installed and in PATH. Exception: %s",
