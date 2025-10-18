@@ -226,6 +226,7 @@ jobs:
           Restart=always
           RestartSec=5
           Environment=PYTHONPATH=/opt/displayboard/src
+          Environment="XDG_RUNTIME_DIR=/run/user/%U"
           EnvironmentFile=-/opt/displayboard/.env
 
           [Install]
