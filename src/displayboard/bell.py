@@ -27,13 +27,14 @@ import threading
 import sys  # Import sys for sys.exit
 from typing import Optional
 from . import config  # Import config
-from gpiozero import Servo
+
+# Set pin factory for gpiozero compatibility BEFORE any GPIO imports
+os.environ["GPIOZERO_PIN_FACTORY"] = config.BELL_GPIO_PIN_FACTORY
+
+from gpiozero import Servo  # noqa: E402
 
 # Always use the displayboard.bell logger for all log output
 logger = logging.getLogger("displayboard.bell")
-
-# Set pin factory for gpiozero compatibility
-os.environ["GPIOZERO_PIN_FACTORY"] = config.BELL_GPIO_PIN_FACTORY
 SERVO_ERROR: str = "Servo not initialized. Check setup."
 servo: Optional[Servo] = None
 

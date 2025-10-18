@@ -79,7 +79,10 @@ class NeoPixel:
                     logger.error(f"Pin {pin} not in pin map. Supported: {supported}")
                     return
 
-                # Initialize real NeoPixel strip
+                # Initialize real NeoPixel strip with error handling
+                logger.debug(
+                    f"Attempting to initialize NeoPixel on board pin for BCM {pin}"
+                )
                 self._pixels = real_neopixel.NeoPixel(
                     board_pin,
                     count,
@@ -89,6 +92,11 @@ class NeoPixel:
                 )
                 msg = f"NeoPixel strip initialized on pin {pin} with {count} LEDs"
                 logger.info(msg)
+            except RuntimeError as e:
+                # RuntimeError is common when PWM/DMA channels are busy or permissions insufficient
+                msg = f"RuntimeError initializing NeoPixel (check permissions/conflicts): {e}"
+                logger.error(msg)
+                self._pixels = None
             except Exception as e:
                 logger.error(f"Failed to initialize NeoPixel hardware: {e}")
                 self._pixels = None

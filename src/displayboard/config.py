@@ -100,7 +100,9 @@ LED_ORDER = "GRB"  # Color order for NeoPixels
 
 # --- Flicker/Breathe Effect ---
 LIGHTING_UPDATE_INTERVAL = 0.05  # Seconds between updates
-LIGHTING_BREATHE_FREQUENCY = 0.2  # Controls speed of breathing effect (slower = more gradual)
+LIGHTING_BREATHE_FREQUENCY = (
+    0.2  # Controls speed of breathing effect (slower = more gradual)
+)
 LIGHTING_BREATHE_MIN_BRIGHTNESS = 0.3  # Minimum brightness (0.0 to 1.0)
 # Range of brightness variation (max = min + range)
 LIGHTING_BREATHE_RANGE = 0.6

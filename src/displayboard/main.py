@@ -90,6 +90,22 @@ def start_threads(
         List of started threading.Thread objects.
     """
     threads: list[threading.Thread] = []
+
+    # Start bell thread first (initializes pigpio factory)
+    if not args.no_bell:
+        t = threading.Thread(
+            target=bell.main,
+            name="BellThread",
+            daemon=False,
+            args=(stop_event,),
+        )
+        threads.append(t)
+        t.start()
+        # Give bell thread time to initialize GPIO factory
+        import time
+
+        time.sleep(0.5)
+
     if not args.no_sounds:
         t = threading.Thread(
             target=sounds.main,
@@ -110,15 +126,6 @@ def start_threads(
         threads.append(t)
         t.start()
 
-    if not args.no_bell:
-        t = threading.Thread(
-            target=bell.main,
-            name="BellThread",
-            daemon=False,
-            args=(stop_event,),
-        )
-        threads.append(t)
-        t.start()
     return threads
 
 

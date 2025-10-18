@@ -17,6 +17,9 @@ from . import config
 # Module logger
 logger = logging.getLogger(__name__)
 
+# Thread safety lock for NeoPixel operations
+_pixel_lock = threading.Lock()
+
 # Lighting now always uses config.LED_PIN_BCM (default: 21). Pin 18 is reserved for bell.
 led_pin_to_use = config.LED_PIN_BCM
 logger.info(
@@ -60,40 +63,43 @@ def flicker_breathe(stop_event: Optional[threading.Event] = None) -> None:
                 config.LIGHTING_BREATHE_MIN_BRIGHTNESS
                 + breathe_raw * config.LIGHTING_BREATHE_RANGE
             )
-            for i in range(config.LED_COUNT):
-                if random.random() < config.LIGHTING_FLICKER_PROBABILITY:
-                    r = int(
-                        random.randint(
-                            config.LIGHTING_FLICKER_R_MIN,
-                            config.LIGHTING_FLICKER_R_MAX,
+            # Use lock to prevent concurrent hardware access
+            with _pixel_lock:
+                for i in range(config.LED_COUNT):
+                    if random.random() < config.LIGHTING_FLICKER_PROBABILITY:
+                        r = int(
+                            random.randint(
+                                config.LIGHTING_FLICKER_R_MIN,
+                                config.LIGHTING_FLICKER_R_MAX,
+                            )
+                            * breathe
                         )
-                        * breathe
-                    )
-                    g = int(
-                        random.randint(
-                            config.LIGHTING_FLICKER_G_MIN,
-                            config.LIGHTING_FLICKER_G_MAX,
+                        g = int(
+                            random.randint(
+                                config.LIGHTING_FLICKER_G_MIN,
+                                config.LIGHTING_FLICKER_G_MAX,
+                            )
+                            * breathe
                         )
-                        * breathe
-                    )
-                    b = int(
-                        random.randint(
-                            config.LIGHTING_FLICKER_B_MIN,
-                            config.LIGHTING_FLICKER_B_MAX,
+                        b = int(
+                            random.randint(
+                                config.LIGHTING_FLICKER_B_MIN,
+                                config.LIGHTING_FLICKER_B_MAX,
+                            )
+                            * breathe
                         )
-                        * breathe
-                    )
-                    pixels[i] = (r, g, b)
-                else:
-                    r = 0
-                    g = int(config.LIGHTING_BASE_G * breathe)
-                    b = 0
-                    pixels[i] = (r, g, b)
-            pixels.show()
+                        pixels[i] = (r, g, b)
+                    else:
+                        r = 0
+                        g = int(config.LIGHTING_BASE_G * breathe)
+                        b = 0
+                        pixels[i] = (r, g, b)
+                pixels.show()
     finally:
         # Cleanup on exit or exception
-        pixels.fill((0, 0, 0))
-        pixels.show()
+        with _pixel_lock:
+            pixels.fill((0, 0, 0))
+            pixels.show()
 
 
 if __name__ == "__main__":
@@ -110,25 +116,3 @@ if __name__ == "__main__":
         pixels.fill((0, 0, 0))
         pixels.show()
         print("Lighting test complete and LEDs turned off.")
-
-try:
-    from displayboard.board import D18
-
-    _has_d18 = True
-except ImportError:
-    D18 = 18  # fallback to default value, but mark as not available
-    _has_d18 = False
-
-# Module logger
-logger = logging.getLogger(__name__)
-
-# Lighting now always uses config.LED_PIN_BCM (default: 21). Pin 18 is reserved for bell.
-led_pin_to_use = config.LED_PIN_BCM
-
-pixels = NeoPixel(
-    led_pin_to_use,  # Use determined pin
-    config.LED_COUNT,
-    brightness=config.LED_BRIGHTNESS,
-    auto_write=False,
-    pixel_order=config.LED_ORDER,  # Use config string directly
-)
