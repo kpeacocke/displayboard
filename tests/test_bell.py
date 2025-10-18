@@ -12,7 +12,7 @@ def test_ensure_pygame_mixer_initialized_raises(
     caplog: pytest.LogCaptureFixture,
     fresh_bell_module: tuple[ModuleType, ModuleType, Any],
 ) -> None:
-    """Covers the raise after logging in ensure_pygame_mixer_initialized (line 46->exit)."""
+    """Tests graceful handling when pygame mixer init fails."""
     bell_module, _, _ = fresh_bell_module
     caplog.set_level(logging.ERROR)
     monkeypatch.setattr(bell_module.pygame.mixer, "get_init", lambda: False)
@@ -21,9 +21,10 @@ def test_ensure_pygame_mixer_initialized_raises(
         raise bell_module.pygame.error("init fail direct")
 
     monkeypatch.setattr(bell_module.pygame.mixer, "init", fail_init)
-    with pytest.raises(bell_module.pygame.error, match="init fail direct"):
-        bell_module.ensure_pygame_mixer_initialized()
+    # No longer raises - handles gracefully
+    bell_module.ensure_pygame_mixer_initialized()
     assert "Failed to initialize pygame mixer: init fail direct" in caplog.text
+    assert "Bell audio will be disabled" in caplog.text
 
 
 def test_move_bell_both_move_and_mid_fail(
@@ -68,7 +69,7 @@ def test_main_ensure_pygame_mixer_initialized_raises(
     caplog: pytest.LogCaptureFixture,
     dummy_event: object,
 ) -> None:
-    """Covers except pygame.error as e during mixer init in main (lines 211-215)."""
+    """Tests bell main continues even when pygame mixer init fails."""
     bell_module, _, _ = fresh_bell_module
     caplog.set_level(logging.ERROR)
 
@@ -77,32 +78,18 @@ def test_main_ensure_pygame_mixer_initialized_raises(
 
     monkeypatch.setattr(bell_module.pygame.mixer, "get_init", lambda: False)
     monkeypatch.setattr(bell_module.pygame.mixer, "init", fail_init)
-    # Patch sys.exit to raise SystemExit so we can catch it
+
+    # Mock random_trigger_loop to avoid infinite loop
     monkeypatch.setattr(
-        bell_module.sys,
-        "exit",
-        lambda code=1: (_ for _ in ()).throw(SystemExit(code)),
+        bell_module, "random_trigger_loop", lambda stop_event=None: None
     )
+    monkeypatch.setattr(bell_module, "stop_sound", lambda: None)
 
-    # Use a dummy event to check if set() is called
-    class DummyEvent:
-        set_called: bool
+    # Should not raise - handles audio failure gracefully
+    bell_module.main(stop_event=dummy_event)
 
-        def __init__(self) -> None:
-            self.set_called: bool = False
-
-        def set(self) -> None:
-            self.set_called = True
-
-        def is_set(self) -> bool:
-            return self.set_called
-
-    dummy_event = DummyEvent()
-    monkeypatch.setattr(bell_module.threading, "Event", lambda: dummy_event)
-    with pytest.raises(SystemExit):
-        bell_module.main(stop_event=None)
     assert "Failed to initialize pygame mixer: init fail main" in caplog.text
-    assert dummy_event.set_called is True
+    assert "Bell audio will be disabled" in caplog.text
 
 
 def test_main_random_trigger_loop_raises_pygame_error(
@@ -505,9 +492,11 @@ def test_start_sound_raises(
     fresh_bell_module: tuple[ModuleType, ModuleType, object],
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Tests exception in start_sound (music.load/play)."""
+    """Tests exception in start_sound (music.load/play) is handled gracefully."""
     bell_module, _, _ = fresh_bell_module
     caplog.set_level(logging.ERROR)
+    # Ensure mixer appears initialized
+    monkeypatch.setattr(bell_module.pygame.mixer, "get_init", lambda: True)
     monkeypatch.setattr(
         bell_module.pygame.mixer.music,
         "load",
@@ -522,9 +511,11 @@ def test_stop_sound_raises(
     fresh_bell_module: tuple[ModuleType, ModuleType, object],
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Tests exception in stop_sound (music.stop)."""
+    """Tests exception in stop_sound (music.stop) is handled gracefully."""
     bell_module, _, music_mock = fresh_bell_module
     caplog.set_level(logging.ERROR)
+    # Ensure mixer appears initialized
+    monkeypatch.setattr(bell_module.pygame.mixer, "get_init", lambda: True)
     monkeypatch.setattr(music_mock, "get_busy", lambda: True)
     monkeypatch.setattr(
         music_mock, "stop", lambda: (_ for _ in ()).throw(pygame.error("stop fail"))
@@ -819,6 +810,8 @@ def test_start_and_stop_sound(
     fresh_bell_module: tuple[ModuleType, ModuleType, Any],
 ) -> None:
     bell_module, _, music_mock = fresh_bell_module
+    # Ensure mixer appears initialized
+    monkeypatch.setattr(bell_module.pygame.mixer, "get_init", lambda: True)
     # Fix randomness
     monkeypatch.setattr(bell_module.random, "randint", lambda a, b: 5)
     monkeypatch.setattr(bell_module.random, "uniform", lambda a, b: 0.42)
@@ -1037,10 +1030,13 @@ def test_start_sound_config_file_none(
 def test_stop_sound_when_not_busy(
     fresh_bell_module: tuple[ModuleType, ModuleType, Any],
     caplog: pytest.LogCaptureFixture,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Tests sound is not playing."""
     bell_module, _, music_mock = fresh_bell_module
     music_mock._is_busy = False  # Explicitly set to not busy
+    # Ensure mixer appears initialized so we get past the first check
+    monkeypatch.setattr(bell_module.pygame.mixer, "get_init", lambda: True)
 
     caplog.set_level(logging.DEBUG)  # Assuming a debug log for this case
     bell_module.stop_sound()

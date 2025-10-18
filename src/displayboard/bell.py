@@ -39,7 +39,6 @@ SERVO_ERROR: str = "Servo not initialized. Check setup."
 servo: Optional[Servo] = None
 
 
-# Initialize pygame mixer only when needed (not at import time)
 def ensure_pygame_mixer_initialized() -> None:
     """
     Ensure pygame.mixer is initialized. Log and continue if it fails.
