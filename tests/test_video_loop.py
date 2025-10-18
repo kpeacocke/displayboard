@@ -74,12 +74,14 @@ def test_handle_video_process_starts_new(
         return dummy_proc
 
     monkeypatch.setattr(
-        video_loop, "logger", types.SimpleNamespace(
+        video_loop,
+        "logger",
+        types.SimpleNamespace(
             info=lambda *a, **k: None,
             debug=lambda *a, **k: None,
             error=lambda *a, **k: None,
             warning=lambda *a, **k: None,
-        )
+        ),
     )
     import subprocess
     import time

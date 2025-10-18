@@ -46,7 +46,9 @@ def is_headless_environment() -> bool:
     is_headless = not (has_display or has_wayland)
 
     if explicitly_disabled:
-        logger.info("Video explicitly disabled via VIDEO_DISABLED environment variable.")
+        logger.info(
+            "Video explicitly disabled via VIDEO_DISABLED environment variable."
+        )
     elif is_headless:
         logger.info(
             "Headless environment detected (no DISPLAY or WAYLAND_DISPLAY). "
@@ -140,7 +142,9 @@ def handle_video_process(
                         "Hint: Set VIDEO_DISABLED=1 environment variable to suppress this error."
                     )
                     return None
-                logger.debug("mpv process started successfully (PID: %s)", new_process.pid)
+                logger.debug(
+                    "mpv process started successfully (PID: %s)", new_process.pid
+                )
                 return new_process
             except OSError as e:
                 # Catch OSError which includes permission errors, display errors, etc.
