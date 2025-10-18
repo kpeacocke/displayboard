@@ -21,19 +21,16 @@ if sys.platform == "linux":
         import neopixel as real_neopixel
 
         HAS_NEOPIXEL = True
-        print("[NEOPIXEL] Hardware support loaded successfully")
         logger.info("NeoPixel hardware support loaded")
     except (ImportError, NotImplementedError) as e:
         HAS_NEOPIXEL = False
         board = None
         real_neopixel = None
-        print(f"[NEOPIXEL] Hardware not available: {e}")
         logger.warning(f"NeoPixel hardware not available: {e}")
 else:
     HAS_NEOPIXEL = False
     board = None
     real_neopixel = None
-    print("[NEOPIXEL] Running on non-Linux platform, using stub")
     logger.info("Running on non-Linux platform, using NeoPixel stub")
 
 # LED color order
@@ -79,7 +76,6 @@ class NeoPixel:
                 board_pin = pin_map.get(pin)
                 if board_pin is None:
                     supported = list(pin_map.keys())
-                    print(f"[NEOPIXEL] Pin {pin} not in map. Supported: {supported}")
                     logger.error(f"Pin {pin} not in pin map. Supported: {supported}")
                     return
 
@@ -92,14 +88,11 @@ class NeoPixel:
                     pixel_order=pixel_order,
                 )
                 msg = f"NeoPixel strip initialized on pin {pin} with {count} LEDs"
-                print(f"[NEOPIXEL] {msg}")
                 logger.info(msg)
             except Exception as e:
-                print(f"[NEOPIXEL] Failed to initialize hardware: {e}")
                 logger.error(f"Failed to initialize NeoPixel hardware: {e}")
                 self._pixels = None
         else:
-            print(f"[NEOPIXEL] Stub initialized (pin={pin}, count={count})")
             logger.debug(f"NeoPixel stub initialized (pin={pin}, count={count})")
 
     def show(self) -> None:
