@@ -14,7 +14,7 @@ def test_ensure_pygame_mixer_initialized_raises(
 ) -> None:
     """Tests graceful handling when pygame mixer init fails."""
     bell_module, _, _ = fresh_bell_module
-    caplog.set_level(logging.ERROR)
+    caplog.set_level(logging.WARNING)
     monkeypatch.setattr(bell_module.pygame.mixer, "get_init", lambda: False)
 
     def fail_init() -> None:
@@ -71,7 +71,7 @@ def test_main_ensure_pygame_mixer_initialized_raises(
 ) -> None:
     """Tests bell main continues even when pygame mixer init fails."""
     bell_module, _, _ = fresh_bell_module
-    caplog.set_level(logging.ERROR)
+    caplog.set_level(logging.WARNING)
 
     def fail_init() -> None:
         raise bell_module.pygame.error("init fail main")
