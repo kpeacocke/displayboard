@@ -176,6 +176,13 @@ jobs:
 
           chmod +x deployment-package/setup.sh
 
+          # Copy permission setup files if they exist
+          if [ -d "deployment" ]; then
+            cp deployment/99-neopixel.rules deployment-package/ 2>/dev/null || true
+            cp deployment/setup-permissions.sh deployment-package/ 2>/dev/null || true
+            chmod +x deployment-package/setup-permissions.sh 2>/dev/null || true
+          fi
+
           # Create service installation script
           cat > deployment-package/install-service.sh << 'EOF'
           #!/bin/bash
@@ -351,6 +358,33 @@ jobs:
           - **Audio**: Default ALSA audio device
           - **Video**: HDMI output
 
+          ### NeoPixel Permissions Setup (Required)
+
+          NeoPixel LEDs require access to `/dev/mem` for DMA operations. To run without root:
+
+          ```bash
+          # Run the permission setup script (included in deployment package)
+          sudo bash setup-permissions.sh
+
+          # Log out and log back in for group changes to take effect
+          # Then verify groups:
+          groups
+          # Should show: gpio video
+
+          # Test without sudo:
+          poetry run python -m displayboard.main --no-video -d
+          ```
+
+          The setup script:
+          - Installs udev rules for GPIO/NeoPixel access
+          - Adds your user to the `gpio` and `video` groups
+          - Configures permissions for `/dev/mem`, GPIO, SPI, and PWM devices
+
+          **Alternative: Run with sudo** (not recommended for production):
+          ```bash
+          sudo $(poetry env info --path)/bin/python -m displayboard.main
+          ```
+
           ## Troubleshooting
 
           ### Audio Issues
@@ -362,13 +396,39 @@ jobs:
           aplay -l
           ```
 
-          ### GPIO Permission Issues
-          ```bash
-          # Add user to gpio group
-          sudo usermod -a -G gpio pi
+          ### GPIO/NeoPixel Permission Issues
 
-          # Or run with sudo (not recommended for production)
-          sudo python -m displayboard.main
+          **Error: `/dev/mem` permission denied**
+          ```bash
+          # Run the permission setup script
+          sudo bash setup-permissions.sh
+
+          # Log out and back in
+          # Verify groups: groups
+
+          # Check udev rules are installed
+          ls -l /etc/udev/rules.d/99-neopixel.rules
+          ```
+
+          **Manually add user to groups:**
+          ```bash
+          sudo usermod -a -G gpio,video $USER
+          # Log out and back in
+
+          # Verify group membership
+          groups
+          ```
+
+          **Check /dev/mem permissions:**
+          ```bash
+          ls -l /dev/mem
+          # Should show: crw-rw---- 1 root gpio 1, 1 ... /dev/mem
+          ```
+
+          **Temporary solution (requires sudo):**
+          ```bash
+          # Not recommended for production
+          sudo $(poetry env info --path)/bin/python -m displayboard.main
           ```
 
           ### Service Issues
