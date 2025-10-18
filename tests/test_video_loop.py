@@ -13,6 +13,7 @@ def patch_config(monkeypatch: pytest.MonkeyPatch) -> None:
         LOOP_WAIT_TIMEOUT = 0.01
         PROCESS_WAIT_TIMEOUT = 0.01
         VIDEO_FILE = "dummy.mp4"
+        VIDEO_DISABLED = False
 
     monkeypatch.setattr(video_loop, "config", DummyConfig)
 
@@ -65,7 +66,7 @@ def test_check_mpv_installed_non_linux(
 def test_handle_video_process_starts_new(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    dummy_proc = type("P", (), {"poll": lambda self: None})()
+    dummy_proc = type("P", (), {"poll": lambda self: None, "pid": 12345})()
     popen_called = {}
 
     def dummy_popen(cmd: str) -> object:
@@ -73,12 +74,20 @@ def test_handle_video_process_starts_new(
         return dummy_proc
 
     monkeypatch.setattr(
-        video_loop, "logger", types.SimpleNamespace(info=lambda *a, **k: None)
+        video_loop, "logger", types.SimpleNamespace(
+            info=lambda *a, **k: None,
+            debug=lambda *a, **k: None,
+            error=lambda *a, **k: None,
+            warning=lambda *a, **k: None,
+        )
     )
     import subprocess
+    import time
 
     monkeypatch.setattr(subprocess, "Popen", dummy_popen)
     monkeypatch.setattr(video_loop, "subprocess", subprocess)
+    monkeypatch.setattr(time, "sleep", lambda s: None)
+    monkeypatch.setattr(video_loop, "time", time)
     proc = video_loop.handle_video_process(None)
     assert popen_called["called"]
     assert proc is dummy_proc
@@ -109,7 +118,12 @@ def test_handle_video_process_called_process_error(
     monkeypatch.setattr(
         video_loop,
         "logger",
-        types.SimpleNamespace(info=lambda *a: None, error=lambda *a: None),
+        types.SimpleNamespace(
+            info=lambda *a, **k: None,
+            debug=lambda *a, **k: None,
+            error=lambda *a, **k: None,
+            warning=lambda *a, **k: None,
+        ),
     )
     monkeypatch.setattr(video_loop, "handle_process_error", dummy_handle_process_error)
 
@@ -133,7 +147,9 @@ def test_handle_video_process_keyboard_interrupt(
         "logger",
         types.SimpleNamespace(
             info=lambda *a, **k: None,
+            debug=lambda *a, **k: None,
             error=lambda *a, **k: None,
+            warning=lambda *a, **k: None,
         ),
     )
     monkeypatch.setattr(
@@ -334,6 +350,7 @@ def test_run_video_loop_runs_once(
             return dummy_proc
         return None
 
+    monkeypatch.setattr(video_loop, "is_headless_environment", lambda: False)
     monkeypatch.setattr(video_loop, "handle_video_process", handle_video_process)
     result = video_loop.run_video_loop(dummy_event)
     assert result is dummy_proc
@@ -413,3 +430,68 @@ def test_cleanup_process_none_and_poll_2(
     dummy_proc = Mock(spec=subprocess.Popen)
     dummy_proc.poll.return_value = 1
     video_loop.cleanup_process(dummy_proc)
+
+
+def test_is_headless_environment_with_display(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Test headless detection when DISPLAY is set."""
+    monkeypatch.setenv("DISPLAY", ":0")
+    monkeypatch.delenv("WAYLAND_DISPLAY", raising=False)
+
+    class DummyConfig:
+        VIDEO_DISABLED = False
+
+    monkeypatch.setattr(video_loop, "config", DummyConfig)
+    assert video_loop.is_headless_environment() is False
+
+
+def test_is_headless_environment_with_wayland(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Test headless detection when WAYLAND_DISPLAY is set."""
+    monkeypatch.delenv("DISPLAY", raising=False)
+    monkeypatch.setenv("WAYLAND_DISPLAY", "wayland-0")
+
+    class DummyConfig:
+        VIDEO_DISABLED = False
+
+    monkeypatch.setattr(video_loop, "config", DummyConfig)
+    assert video_loop.is_headless_environment() is False
+
+
+def test_is_headless_environment_no_display(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Test headless detection when no display variables are set."""
+    monkeypatch.delenv("DISPLAY", raising=False)
+    monkeypatch.delenv("WAYLAND_DISPLAY", raising=False)
+
+    class DummyConfig:
+        VIDEO_DISABLED = False
+
+    monkeypatch.setattr(video_loop, "config", DummyConfig)
+    assert video_loop.is_headless_environment() is True
+
+
+def test_is_headless_environment_explicitly_disabled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Test headless detection when VIDEO_DISABLED is True."""
+    monkeypatch.setenv("DISPLAY", ":0")
+
+    class DummyConfig:
+        VIDEO_DISABLED = True
+
+    monkeypatch.setattr(video_loop, "config", DummyConfig)
+    assert video_loop.is_headless_environment() is True
+
+
+def test_run_video_loop_skips_in_headless(
+    monkeypatch: pytest.MonkeyPatch, dummy_event: threading.Event
+) -> None:
+    """Test run_video_loop returns None immediately in headless environment."""
+    monkeypatch.setattr(video_loop, "is_headless_environment", lambda: True)
+
+    result = video_loop.run_video_loop(dummy_event)
+    assert result is None

@@ -8,6 +8,7 @@ testability.
 
 __all__ = [
     "check_mpv_installed",
+    "is_headless_environment",
     "play_video_loop",
     "run_video_loop",
     "handle_video_process",
@@ -24,12 +25,41 @@ import shutil
 import sys
 import time
 import threading
+import os
 from typing import Optional
 import platform
 import logging
 from . import config
 
 logger = logging.getLogger(__name__)
+
+
+def is_headless_environment() -> bool:
+    """Check if running in a headless environment without display."""
+    # Check for DISPLAY environment variable (Linux/Unix)
+    has_display = bool(os.environ.get("DISPLAY"))
+    # Check for Wayland (alternative to X11)
+    has_wayland = bool(os.environ.get("WAYLAND_DISPLAY"))
+    # Check if explicitly disabled
+    explicitly_disabled = config.VIDEO_DISABLED
+
+    is_headless = not (has_display or has_wayland)
+
+    if explicitly_disabled:
+        logger.info("Video explicitly disabled via VIDEO_DISABLED environment variable.")
+    elif is_headless:
+        logger.info(
+            "Headless environment detected (no DISPLAY or WAYLAND_DISPLAY). "
+            "Video will be disabled."
+        )
+    else:
+        logger.debug(
+            "Display environment detected: DISPLAY=%s, WAYLAND_DISPLAY=%s",
+            os.environ.get("DISPLAY", "(not set)"),
+            os.environ.get("WAYLAND_DISPLAY", "(not set)"),
+        )
+
+    return is_headless or explicitly_disabled
 
 
 def check_mpv_installed() -> None:
@@ -62,6 +92,11 @@ def run_video_loop(
     event: threading.Event,
 ) -> Optional[subprocess.Popen[bytes]]:
     """Run the video loop, handling process management."""
+    # Check if we're in a headless environment before attempting video
+    if is_headless_environment():
+        logger.info("Skipping video loop in headless/disabled environment.")
+        return None
+
     process: Optional[subprocess.Popen[bytes]] = None
     last_proc: Optional[subprocess.Popen[bytes]] = None
     while not event.wait(timeout=config.LOOP_WAIT_TIMEOUT):
@@ -88,6 +123,7 @@ def handle_video_process(
                 "--no-terminal",
                 str(config.VIDEO_FILE),  # Always use str for subprocess
             ]
+            logger.debug("Launching mpv with command: %s", " ".join(cmd))
             try:
                 new_process = subprocess.Popen(cmd)
                 # Give mpv a moment to initialize and check if it crashes immediately
@@ -100,13 +136,20 @@ def handle_video_process(
                         new_process.returncode,
                     )
                     logger.warning("Video playback will be disabled.")
+                    logger.info(
+                        "Hint: Set VIDEO_DISABLED=1 environment variable to suppress this error."
+                    )
                     return None
+                logger.debug("mpv process started successfully (PID: %s)", new_process.pid)
                 return new_process
             except OSError as e:
                 # Catch OSError which includes permission errors, display errors, etc.
                 logger.error(
                     "Failed to start mpv process: %s. Video playback will be disabled.",
                     e,
+                )
+                logger.info(
+                    "Hint: Set VIDEO_DISABLED=1 environment variable to suppress this error."
                 )
                 return None
     except FileNotFoundError as e:

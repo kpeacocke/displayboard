@@ -55,6 +55,8 @@ MAIN_LOOP_SLEEP_S = 1.0  # Sleep interval for main loop when video is disabled
 # --- Video ---
 VIDEO_FILE = VIDEO_DIR / "main_loop.mp4"
 PROCESS_WAIT_TIMEOUT = 5  # Seconds to wait for video process to terminate
+# Set to "1", "true", or "yes" to disable video (useful for CI/headless environments)
+VIDEO_DISABLED = os.getenv("VIDEO_DISABLED", "").lower() in ("1", "true", "yes")
 
 # --- Audio ---
 AUDIO_EXTENSIONS = [".wav", ".ogg", ".mp3"]
