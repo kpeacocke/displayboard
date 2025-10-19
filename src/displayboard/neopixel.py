@@ -92,13 +92,30 @@ class NeoPixel:
                 )
                 msg = f"NeoPixel strip initialized on pin {pin} with {count} LEDs"
                 logger.info(msg)
+            except PermissionError as e:
+                # PermissionError means /dev/mem or GPIO access denied
+                msg = (
+                    f"Permission denied initializing NeoPixel: {e}. "
+                    f"Run 'sudo bash deployment/setup-permissions.sh' to fix. "
+                    f"NeoPixel will be disabled."
+                )
+                logger.error(msg)
+                self._pixels = None
             except RuntimeError as e:
                 # RuntimeError is common when PWM/DMA channels are busy or permissions insufficient
-                msg = f"RuntimeError initializing NeoPixel (check permissions/conflicts): {e}"
+                msg = (
+                    f"RuntimeError initializing NeoPixel (check permissions/conflicts): {e}. "
+                    f"NeoPixel will be disabled. Try 'sudo bash deployment/setup-permissions.sh'"
+                )
                 logger.error(msg)
                 self._pixels = None
             except Exception as e:
-                logger.error(f"Failed to initialize NeoPixel hardware: {e}")
+                # Catch all other exceptions to prevent SEGV crashes
+                msg = (
+                    f"Failed to initialize NeoPixel hardware: {e}. "
+                    f"NeoPixel will be disabled. Check permissions with 'ls -l /dev/mem'"
+                )
+                logger.error(msg)
                 self._pixels = None
         else:
             logger.debug(f"NeoPixel stub initialized (pin={pin}, count={count})")
@@ -110,6 +127,8 @@ class NeoPixel:
                 self._pixels.show()
             except Exception as e:
                 logger.error(f"Failed to update NeoPixel display: {e}")
+                # Clear pixels reference on persistent failure
+                self._pixels = None
 
     def fill(self, color: Tuple[int, int, int]) -> None:
         """
@@ -125,6 +144,8 @@ class NeoPixel:
                     self._pixels.show()
             except Exception as e:
                 logger.error(f"Failed to fill NeoPixel strip: {e}")
+                # Clear pixels reference on persistent failure
+                self._pixels = None
 
     def __setitem__(self, index: int, color: Tuple[int, int, int]) -> None:
         """
@@ -141,3 +162,5 @@ class NeoPixel:
                     self._pixels.show()
             except Exception as e:
                 logger.error(f"Failed to set pixel {index}: {e}")
+                # Clear pixels reference on persistent failure
+                self._pixels = None

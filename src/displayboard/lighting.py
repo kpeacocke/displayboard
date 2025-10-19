@@ -25,14 +25,27 @@ led_pin_to_use = config.LED_PIN_BCM
 logger.info(
     f"Initializing NeoPixel on pin {led_pin_to_use} with {config.LED_COUNT} LEDs"
 )
-pixels = NeoPixel(
-    led_pin_to_use,  # Use determined pin
-    config.LED_COUNT,
-    brightness=config.LED_BRIGHTNESS,
-    auto_write=False,
-    pixel_order=config.LED_ORDER,  # Use config string directly
-)
-logger.info("Lighting module initialized")
+try:
+    pixels = NeoPixel(
+        led_pin_to_use,  # Use determined pin
+        config.LED_COUNT,
+        brightness=config.LED_BRIGHTNESS,
+        auto_write=False,
+        pixel_order=config.LED_ORDER,  # Use config string directly
+    )
+    logger.info("Lighting module initialized successfully")
+except Exception as e:
+    logger.error(
+        f"Failed to initialize lighting module: {e}. "
+        f"Lighting will be disabled. Check NeoPixel permissions."
+    )
+    pixels = NeoPixel(
+        led_pin_to_use,
+        0,  # Zero LEDs for stub mode
+        brightness=0.0,
+        auto_write=False,
+        pixel_order=config.LED_ORDER,
+    )
 __all__ = [
     "flicker_breathe",
     "pixels",
@@ -49,9 +62,20 @@ def flicker_breathe(stop_event: Optional[threading.Event] = None) -> None:
     Args:
         stop_event: Optional threading.Event to allow graceful shutdown.
     """
+    # Check if NeoPixel hardware is available
+    if pixels._pixels is None:
+        logger.warning(
+            "NeoPixel hardware not available. Lighting effects disabled. "
+            "Check permissions with 'ls -l /dev/mem' or run setup-permissions.sh"
+        )
+        # Run empty loop to keep thread alive but do nothing
+        event = stop_event or threading.Event()
+        event.wait()
+        return
+
     logger.info("Starting flicker/breathe lighting effect")
     t_start: float = time.time()
-    event: threading.Event = stop_event or threading.Event()
+    event = stop_event or threading.Event()
     try:
         while not event.wait(timeout=config.LIGHTING_UPDATE_INTERVAL):
             # Calculate breathing brightness (sinusoidal)

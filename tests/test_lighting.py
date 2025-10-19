@@ -3,6 +3,7 @@ import pytest
 import sys
 import importlib
 import types
+import logging
 from unittest.mock import patch, MagicMock
 from typing import Generator
 from _pytest.monkeypatch import MonkeyPatch
@@ -156,3 +157,72 @@ def test_flicker_breathe_finally_cleanup(dummy_event: MagicMock) -> None:
                 assert str(e) == "fail!"
         mock_pixels.fill.assert_called_with((0, 0, 0))
         assert mock_pixels.show.call_count >= 1
+
+
+def test_lighting_module_init_failure_creates_stub(
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test that lighting module creates stub NeoPixel on initialization failure."""
+    caplog.set_level(logging.ERROR)
+
+    # Mock NeoPixel to fail on first call, succeed on second
+    call_count = {"n": 0}
+
+    def mock_neopixel_init(*args, **kwargs):  # type: ignore
+        call_count["n"] += 1
+        if call_count["n"] == 1:
+            raise RuntimeError("Hardware init failed")
+        # Second call (stub creation) succeeds
+        mock_instance = MagicMock()
+        mock_instance._pixels = None  # Stub has no real pixels
+        return mock_instance
+
+    with patch("displayboard.neopixel.NeoPixel", side_effect=mock_neopixel_init):
+        # Reload lighting module to trigger initialization
+        sys.modules.pop("displayboard.lighting", None)
+        import displayboard.lighting
+
+        importlib.reload(displayboard.lighting)
+
+        # Should log error about initialization failure
+        assert "Failed to initialize lighting module" in caplog.text
+        assert "Lighting will be disabled" in caplog.text
+
+        # pixels should be assigned (stub instance)
+        assert displayboard.lighting.pixels is not None
+
+
+def test_flicker_breathe_exits_early_when_no_hardware(
+    caplog: pytest.LogCaptureFixture,
+    dummy_event: MagicMock,
+) -> None:
+    """Test that flicker_breathe exits early when NeoPixel hardware unavailable."""
+    caplog.set_level(logging.WARNING)
+
+    # Create a mock lighting module with pixels._pixels = None
+    with patch("displayboard.neopixel.NeoPixel", autospec=True) as mock_neopixel:
+        mock_pixels = MagicMock()
+        mock_pixels._pixels = None  # Simulate no hardware
+        mock_neopixel.return_value = mock_pixels
+
+        # Reload lighting module
+        sys.modules.pop("displayboard.lighting", None)
+        import displayboard.lighting
+
+        importlib.reload(displayboard.lighting)
+
+        # Mock the global pixels object in the lighting module
+        displayboard.lighting.pixels = mock_pixels
+
+        # Call flicker_breathe - should exit immediately
+        displayboard.lighting.flicker_breathe(stop_event=dummy_event)
+
+        # Should log warning about unavailable hardware
+        assert "NeoPixel hardware not available" in caplog.text
+        assert "Lighting effects disabled" in caplog.text
+        assert "setup-permissions.sh" in caplog.text
+
+        # Should not have called show() or fill() since hardware unavailable
+        mock_pixels.show.assert_not_called()
+        mock_pixels.fill.assert_not_called()
