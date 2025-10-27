@@ -24,7 +24,7 @@ jobs:
         run: |
           pip-licenses --format=markdown --output-file=THIRD_PARTY_LICENSES.md
       - name: Upload license report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: third-party-licenses
           path: THIRD_PARTY_LICENSES.md
