@@ -13,7 +13,7 @@ jobs:
     outputs:
       passed: ${{ steps.pass.outputs.ok }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: actions/setup-python@v6
         with:
           python-version: "3.9"
@@ -49,7 +49,7 @@ jobs:
     needs: validate
     if: ${{ needs.validate.outputs.passed == 'true' }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: actions/setup-python@v6
         with:
           python-version: "3.9"
