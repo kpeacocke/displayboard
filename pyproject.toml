@@ -35,7 +35,7 @@ rpi-gpio = { version = "*", markers = "sys_platform == 'linux'" }  # Direct GPIO
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.5"
 coverage = "^7.8.0"
-mypy = "^1.15.0"
+mypy = "^1.19.1"
 ruff = "^0.14.0"
 black = "^25.1.0"
 pre-commit = "^4.2.0"
