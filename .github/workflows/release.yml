@@ -14,7 +14,7 @@ jobs:
       passed: ${{ steps.pass.outputs.ok }}
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.9"
       - name: Install Poetry
@@ -50,7 +50,7 @@ jobs:
     if: ${{ needs.validate.outputs.passed == 'true' }}
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.9"
       - name: Install Poetry
