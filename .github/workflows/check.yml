@@ -17,10 +17,17 @@ jobs:
           python-version: "3.9"
       - name: Install Poetry
         run: |
-          curl -sSL https://install.python-poetry.org | python3 -
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          python -m pip install --upgrade pip
+          for attempt in 1 2 3; do
+            python -m pip install "poetry==2.1.4" && break
+            if [ "$attempt" -eq 3 ]; then
+              exit 1
+            fi
+            sleep $((attempt * 5))
+          done
+          poetry --version
       - name: Install dependencies
-        run: poetry install
+        run: poetry install --no-interaction --no-ansi
       - name: Run Ruff and Black
         run: |
           poetry run ruff check .
@@ -36,10 +43,17 @@ jobs:
           python-version: "3.9"
       - name: Install Poetry
         run: |
-          curl -sSL https://install.python-poetry.org | python3 -
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          python -m pip install --upgrade pip
+          for attempt in 1 2 3; do
+            python -m pip install "poetry==2.1.4" && break
+            if [ "$attempt" -eq 3 ]; then
+              exit 1
+            fi
+            sleep $((attempt * 5))
+          done
+          poetry --version
       - name: Install dependencies
-        run: poetry install
+        run: poetry install --no-interaction --no-ansi
       - name: Run Mypy
         run: poetry run mypy src
 
@@ -53,10 +67,17 @@ jobs:
           python-version: "3.9"
       - name: Install Poetry
         run: |
-          curl -sSL https://install.python-poetry.org | python3 -
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          python -m pip install --upgrade pip
+          for attempt in 1 2 3; do
+            python -m pip install "poetry==2.1.4" && break
+            if [ "$attempt" -eq 3 ]; then
+              exit 1
+            fi
+            sleep $((attempt * 5))
+          done
+          poetry --version
       - name: Install dependencies
-        run: poetry install
+        run: poetry install --no-interaction --no-ansi
       - name: Run Pytest
         run: poetry run pytest
 
@@ -72,10 +93,17 @@ jobs:
           python-version: "3.9"
       - name: Install Poetry
         run: |
-          curl -sSL https://install.python-poetry.org | python3 -
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          python -m pip install --upgrade pip
+          for attempt in 1 2 3; do
+            python -m pip install "poetry==2.1.4" && break
+            if [ "$attempt" -eq 3 ]; then
+              exit 1
+            fi
+            sleep $((attempt * 5))
+          done
+          poetry --version
       - name: Install dependencies
-        run: poetry install
+        run: poetry install --no-interaction --no-ansi
       - name: Run Coverage
         id: cov
         run: |
