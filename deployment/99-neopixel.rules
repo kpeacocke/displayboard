@@ -1,0 +1,15 @@
+# udev rules for NeoPixel/WS281x LED access without root
+# This allows members of the 'gpio' group to access /dev/mem and GPIO devices
+
+# Grant access to /dev/mem for DMA operations (required by rpi_ws281x)
+SUBSYSTEM=="mem", KERNEL=="mem", GROUP="gpio", MODE="0660"
+
+# Grant access to GPIO devices
+SUBSYSTEM=="gpio", GROUP="gpio", MODE="0660"
+SUBSYSTEM=="gpio", KERNEL=="gpiochip*", GROUP="gpio", MODE="0660"
+
+# Grant access to SPI devices (alternative interface for some LED strips)
+SUBSYSTEM=="spi", GROUP="gpio", MODE="0660"
+
+# Grant access to PWM devices
+SUBSYSTEM=="pwm", GROUP="gpio", MODE="0660"
