@@ -1,7 +1,0 @@
-{
-    "reportMissingTypeStubs": false,
-    "reportMissingImports": false,
-    "extraPaths": [
-        "typings"
-    ]
-}
